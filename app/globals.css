@@ -1,0 +1,101 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Variables base ─────────────────────────────────────────── */
+:root {
+  --bg-base: #070b14;
+  --bg-surface: #0d1525;
+  --bg-elevated: #152033;
+  --border: #1e2d45;
+  --border-muted: #131f33;
+  --text-primary: #e8edf5;
+  --text-secondary: #8b9fc0;
+  --text-muted: #4a5e7a;
+  --gain: #10b981;
+  --gain-subtle: rgba(16, 185, 129, 0.12);
+  --loss: #ef4444;
+  --loss-subtle: rgba(239, 68, 68, 0.12);
+  --accent: #3b82f6;
+  --accent-subtle: rgba(59, 130, 246, 0.12);
+}
+
+/* ─── Reset y base ───────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Números financieros: monoespaciado + tabulares ──────────── */
+.font-finance {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Scrollbar personalizado ────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ─── Componentes reutilizables ──────────────────────────────── */
+@layer components {
+  .card {
+    @apply bg-surface rounded-xl border border-border p-5;
+  }
+
+  .card-elevated {
+    @apply bg-elevated rounded-xl border border-border p-5;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-white text-sm font-medium px-4 py-2 rounded-lg
+           hover:bg-blue-500 transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-base
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply text-text-secondary text-sm font-medium px-4 py-2 rounded-lg
+           hover:bg-elevated hover:text-text-primary transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-border;
+  }
+
+  .input {
+    @apply bg-base border border-border rounded-lg px-3 py-2 text-sm text-text-primary
+           placeholder:text-text-muted
+           focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
+           transition-colors duration-150;
+  }
+
+  .label {
+    @apply text-text-secondary text-xs font-medium uppercase tracking-wider;
+  }
+
+  /* Colores de P&G */
+  .text-gain { color: var(--gain); }
+  .text-loss { color: var(--loss); }
+  .bg-gain-subtle { background-color: var(--gain-subtle); }
+  .bg-loss-subtle { background-color: var(--loss-subtle); }
+}
