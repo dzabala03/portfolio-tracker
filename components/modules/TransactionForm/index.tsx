@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { NewTransaction, TransactionType } from "@/types";
-import { clsx } from "clsx";
 import { Loader2 } from "lucide-react";
 
 interface Props {
@@ -72,36 +71,28 @@ export function TransactionForm({ onSuccess }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
       {/* Tipo: BUY / SELL */}
-      <div>
-        <label className="label block mb-2">Tipo</label>
-        <div className="flex gap-2">
+      <div className="field">
+        <label>Tipo</label>
+        <div className="seg" style={{ display: "flex", width: "100%" }}>
           {(["BUY", "SELL"] as TransactionType[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setForm((p) => ({ ...p, type: t }))}
-              className={clsx(
-                "flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors",
-                form.type === t
-                  ? t === "BUY"
-                    ? "bg-gain-subtle border-gain text-gain"
-                    : "bg-loss-subtle border-loss text-loss"
-                  : "border-border text-text-muted hover:border-border hover:text-text-secondary"
-              )}
-            >
-              {t === "BUY" ? "Compra" : "Venta"}
-            </button>
+            <label key={t} className="seg-opt" style={{ flex: 1, justifyContent: "center" }}>
+              <input
+                type="radio"
+                name="type"
+                checked={form.type === t}
+                onChange={() => setForm((p) => ({ ...p, type: t }))}
+              />
+              <span>{t === "BUY" ? "Compra" : "Venta"}</span>
+            </label>
           ))}
         </div>
       </div>
 
       {/* Ticker */}
-      <div>
-        <label htmlFor="ticker" className="label block mb-2">
-          Ticker
-        </label>
+      <div className="field">
+        <label htmlFor="ticker">Ticker</label>
         <input
           id="ticker"
           name="ticker"
@@ -110,21 +101,20 @@ export function TransactionForm({ onSuccess }: Props) {
           placeholder="AAPL"
           value={form.ticker}
           onChange={handleChange}
-          className="input w-full uppercase"
+          className="input"
+          style={{ textTransform: "uppercase" }}
           maxLength={10}
           aria-describedby="ticker-hint"
         />
-        <p id="ticker-hint" className="text-text-muted text-xs mt-1">
+        <p id="ticker-hint" className="text-muted" style={{ fontSize: 12, margin: "5px 0 0" }}>
           Símbolo de NYSE / NASDAQ
         </p>
       </div>
 
-      {/* Acciones + Precio — en fila */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="shares" className="label block mb-2">
-            Acciones
-          </label>
+      {/* Acciones + Precio */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+        <div className="field">
+          <label htmlFor="shares">Acciones</label>
           <input
             id="shares"
             name="shares"
@@ -135,13 +125,11 @@ export function TransactionForm({ onSuccess }: Props) {
             placeholder="10"
             value={form.shares || ""}
             onChange={handleChange}
-            className="input w-full"
+            className="input"
           />
         </div>
-        <div>
-          <label htmlFor="price" className="label block mb-2">
-            Precio (USD)
-          </label>
+        <div className="field">
+          <label htmlFor="price">Precio (USD)</label>
           <input
             id="price"
             name="price"
@@ -152,17 +140,15 @@ export function TransactionForm({ onSuccess }: Props) {
             placeholder="185.50"
             value={form.price || ""}
             onChange={handleChange}
-            className="input w-full"
+            className="input"
           />
         </div>
       </div>
 
-      {/* Fecha + Comisiones — en fila */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="date" className="label block mb-2">
-            Fecha
-          </label>
+      {/* Fecha + Comisiones */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+        <div className="field">
+          <label htmlFor="date">Fecha</label>
           <input
             id="date"
             name="date"
@@ -170,13 +156,11 @@ export function TransactionForm({ onSuccess }: Props) {
             required
             value={form.date}
             onChange={handleChange}
-            className="input w-full"
+            className="input"
           />
         </div>
-        <div>
-          <label htmlFor="fees" className="label block mb-2">
-            Comisiones (USD)
-          </label>
+        <div className="field">
+          <label htmlFor="fees">Comisiones (USD)</label>
           <input
             id="fees"
             name="fees"
@@ -186,16 +170,14 @@ export function TransactionForm({ onSuccess }: Props) {
             placeholder="0.00"
             value={form.fees}
             onChange={handleChange}
-            className="input w-full"
+            className="input"
           />
         </div>
       </div>
 
       {/* Notas */}
-      <div>
-        <label htmlFor="notes" className="label block mb-2">
-          Notas (opcional)
-        </label>
+      <div className="field">
+        <label htmlFor="notes">Notas (opcional)</label>
         <textarea
           id="notes"
           name="notes"
@@ -203,37 +185,37 @@ export function TransactionForm({ onSuccess }: Props) {
           placeholder="Descripción opcional..."
           value={form.notes}
           onChange={handleChange}
-          className="input w-full resize-none"
+          className="input"
+          style={{ resize: "none" }}
         />
       </div>
 
       {/* Total calculado */}
       {form.shares > 0 && form.price > 0 && (
-        <div className="bg-elevated rounded-lg px-4 py-3 flex justify-between items-center">
-          <span className="text-text-secondary text-xs">Total operación</span>
-          <span className="font-finance text-text-primary font-semibold">
-            ${(Number(form.shares) * Number(form.price) + Number(form.fees || 0)).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        <div className="card" style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <span className="text-muted" style={{ fontSize: 12 }}>Total operación</span>
+          <span className="num" style={{ fontWeight: 600, fontSize: 15 }}>
+            {(Number(form.shares) * Number(form.price) + Number(form.fees || 0)).toLocaleString("en-US", {
+              style: "currency",
+              currency: "USD",
+            })}
           </span>
         </div>
       )}
 
       {/* Feedback */}
       {error && (
-        <p role="alert" className="text-loss text-sm bg-loss-subtle rounded-lg px-3 py-2">
+        <p role="alert" className="tag tag-loss" style={{ fontSize: 13, padding: "8px 12px", width: "100%" }}>
           {error}
         </p>
       )}
       {success && (
-        <p role="status" className="text-gain text-sm bg-gain-subtle rounded-lg px-3 py-2">
+        <p role="status" className="tag tag-gain" style={{ fontSize: 13, padding: "8px 12px", width: "100%" }}>
           Transacción guardada correctamente.
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="btn-primary w-full flex items-center justify-center gap-2"
-      >
+      <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-block">
         {isSubmitting && <Loader2 size={14} className="animate-spin" />}
         {isSubmitting ? "Guardando..." : "Guardar transacción"}
       </button>

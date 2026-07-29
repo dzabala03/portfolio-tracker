@@ -2,14 +2,14 @@
 
 import { NextResponse } from "next/server";
 import { fetchAllTransactions } from "@/lib/supabase/client";
-import { fetchQuotes, fetchCompanyNames } from "@/lib/finnhub/client";
+import { fetchQuotes, fetchCompanyProfiles } from "@/lib/finnhub/client";
 import {
   calculateHoldingStates,
   calculateCashFlow,
+  calculateNetCapitalInMarket,
   buildHoldings,
   buildPortfolioSummary,
 } from "@/lib/finance/calculations";
-import { TRADING_TYPES } from "@/types";
 
 // Los datos cambian con cada transacción — nunca servir una versión cacheada
 export const dynamic = "force-dynamic";
@@ -25,6 +25,7 @@ export async function GET() {
 
     // Flujos de caja (DIVIDEND, DEPOSIT, FEE, etc.)
     const cashFlow = calculateCashFlow(transactions);
+    const netCapitalInMarket = calculateNetCapitalInMarket(transactions);
 
     // Estados de holdings (solo BUY/SELL)
     const holdingStates = calculateHoldingStates(transactions);
@@ -39,21 +40,21 @@ export async function GET() {
       );
       return NextResponse.json({
         holdings: [],
-        summary: buildPortfolioSummary([], realizedMap, cashFlow),
+        summary: buildPortfolioSummary([], realizedMap, cashFlow, netCapitalInMarket),
         transactions,
       });
     }
 
-    const [quotes, companyNames] = await Promise.all([
+    const [quotes, companyProfiles] = await Promise.all([
       fetchQuotes(activeTickers),
-      fetchCompanyNames(activeTickers),
+      fetchCompanyProfiles(activeTickers),
     ]);
 
-    const holdings = buildHoldings(holdingStates, quotes, companyNames);
+    const holdings = buildHoldings(holdingStates, quotes, companyProfiles);
     const realizedMap = new Map(
       Array.from(holdingStates.entries()).map(([t, s]) => [t, s.realizedPnL])
     );
-    const summary = buildPortfolioSummary(holdings, realizedMap, cashFlow);
+    const summary = buildPortfolioSummary(holdings, realizedMap, cashFlow, netCapitalInMarket);
 
     return NextResponse.json({ holdings, summary, transactions });
   } catch (error) {

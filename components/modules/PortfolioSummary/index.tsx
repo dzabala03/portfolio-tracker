@@ -1,166 +1,66 @@
 "use client";
 
 import type { PortfolioSummary } from "@/types";
-import {
-  formatCurrency,
-  formatPercent,
-  pnlColorClass,
-} from "@/lib/finance/calculations";
-import { TrendingUp, TrendingDown, DollarSign, Activity, Landmark } from "lucide-react";
+import { formatCurrency, formatPercent } from "@/lib/finance/calculations";
 import { clsx } from "clsx";
 
 interface Props {
   summary: PortfolioSummary;
 }
 
-interface MetricCardProps {
-  title: string;
-  value: string;
-  subValue?: string;
-  subLabel?: string;
-  colorValue?: number; // si es positivo → verde, negativo → rojo
-  icon: React.ReactNode;
-  isHighlight?: boolean;
-}
-
-function MetricCard({
-  title,
-  value,
-  subValue,
-  subLabel,
-  colorValue,
-  icon,
-  isHighlight,
-}: MetricCardProps) {
-  const isPositive = colorValue !== undefined && colorValue > 0;
-  const isNegative = colorValue !== undefined && colorValue < 0;
-  const colorClass =
-    isPositive ? "text-gain" : isNegative ? "text-loss" : "text-text-primary";
-  const bgClass =
-    isPositive ? "bg-gain-subtle" : isNegative ? "bg-loss-subtle" : "";
-
-  return (
-    <div
-      className={clsx(
-        "card relative overflow-hidden transition-all duration-300",
-        isHighlight && "border-accent/30",
-        colorValue !== undefined && (isPositive ? "border-gain/20" : isNegative ? "border-loss/20" : "")
-      )}
-    >
-      {/* Fondo sutil de color en cards P&G */}
-      {colorValue !== undefined && (
-        <div
-          className={clsx("absolute inset-0 opacity-30", bgClass)}
-          aria-hidden="true"
-        />
-      )}
-
-      <div className="relative">
-        <div className="flex items-center justify-between mb-3">
-          <span className="label">{title}</span>
-          <span className={clsx("p-1.5 rounded-lg", colorValue !== undefined ? bgClass : "bg-elevated")}>
-            {icon}
-          </span>
-        </div>
-
-        <p
-          className={clsx(
-            "font-finance text-2xl font-semibold tracking-tight",
-            colorValue !== undefined ? colorClass : "text-text-primary"
-          )}
-        >
-          {value}
-        </p>
-
-        {subValue && (
-          <p className={clsx("font-finance text-sm mt-1", colorValue !== undefined ? colorClass : "text-text-secondary")}>
-            {subValue}
-            {subLabel && (
-              <span className="text-text-muted font-sans font-normal ml-1 text-xs">
-                {subLabel}
-              </span>
-            )}
-          </p>
-        )}
-      </div>
-    </div>
+function DeltaArrow({ up }: { up: boolean }) {
+  return up ? (
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-gain)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15l6-6 4 4 6-8"></path>
+      <path d="M14 5h6v6"></path>
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-loss)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 9l6 6 4-4 6 8"></path>
+      <path d="M14 19h6v-6"></path>
+    </svg>
   );
 }
 
 export function PortfolioSummaryCards({ summary }: Props) {
-  const DailyIcon =
-    summary.totalDailyChange >= 0 ? TrendingUp : TrendingDown;
+  const dailyUp = summary.totalDailyChange >= 0;
+  const returnUp = summary.totalReturn >= 0;
 
   return (
-    <section aria-label="Resumen del portafolio">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Valor total */}
-        <MetricCard
-          title="Valor total"
-          value={formatCurrency(summary.totalValue)}
-          subValue={`${summary.holdingsCount} posición${summary.holdingsCount !== 1 ? "es" : ""}`}
-          icon={<DollarSign size={16} className="text-accent" />}
-          isHighlight
-        />
-
-        {/* Total depositado */}
-        <MetricCard
-          title="Total depositado"
-          value={formatCurrency(summary.cashFlow.totalDeposits)}
-          subValue={formatCurrency(summary.cashFlow.netCashFlow)}
-          subLabel="flujo neto de caja"
-          icon={<Landmark size={16} className="text-accent" />}
-        />
-
-        {/* Variación del día */}
-        <MetricCard
-          title="Hoy"
-          value={formatCurrency(summary.totalDailyChange)}
-          subValue={formatPercent(summary.totalDailyChangePct)}
-          colorValue={summary.totalDailyChange}
-          icon={
-            <DailyIcon
-              size={16}
-              className={summary.totalDailyChange >= 0 ? "text-gain" : "text-loss"}
-            />
-          }
-        />
-
-        {/* P&G No Realizado */}
-        <MetricCard
-          title="P&G No realizado"
-          value={formatCurrency(summary.totalUnrealizedPnL)}
-          subValue={formatPercent(summary.totalUnrealizedPnLPct)}
-          colorValue={summary.totalUnrealizedPnL}
-          icon={
-            <Activity
-              size={16}
-              className={summary.totalUnrealizedPnL >= 0 ? "text-gain" : "text-loss"}
-            />
-          }
-        />
-
-        {/* P&G Realizado */}
-        <MetricCard
-          title="P&G Realizado"
-          value={formatCurrency(summary.totalRealizedPnL)}
-          subLabel="posiciones cerradas"
-          colorValue={summary.totalRealizedPnL}
-          icon={
-            <TrendingUp
-              size={16}
-              className={summary.totalRealizedPnL >= 0 ? "text-gain" : "text-loss"}
-            />
-          }
-        />
+    <div className="summary">
+      {/* Valor total del portafolio */}
+      <div>
+        <div className="kicker">Valor total del portafolio</div>
+        <div className="big-num">{formatCurrency(summary.totalValue)}</div>
+        <div className={clsx("delta", dailyUp ? "up" : "down")}>
+          <DeltaArrow up={dailyUp} />
+          {dailyUp ? "+" : ""}
+          {formatCurrency(summary.totalDailyChange)} ({formatPercent(summary.totalDailyChangePct)}) hoy
+        </div>
       </div>
 
-      {/* Disclaimer */}
-      <p className="text-text-muted text-2xs mt-3">
-        Precios con retraso de hasta 60s. No constituye asesoría financiera.
-        Última actualización:{" "}
-        {new Date(summary.lastUpdated).toLocaleTimeString("es-CO")}
-      </p>
-    </section>
+      {/* Rendimiento total */}
+      <div>
+        <div className="kicker">Rendimiento total</div>
+        <div className="big-num" style={{ fontSize: 30 }}>
+          {returnUp ? "+" : ""}
+          {formatCurrency(summary.totalReturn)}
+        </div>
+        <div className={clsx("delta", returnUp ? "up" : "down")}>
+          {formatPercent(summary.totalReturnPct)} desde el inicio
+        </div>
+      </div>
+
+      {/* Efectivo disponible */}
+      <div>
+        <div className="kicker">Efectivo disponible</div>
+        <div className="big-num" style={{ fontSize: 30 }}>
+          {formatCurrency(summary.cashAvailable)}
+        </div>
+        <div className="delta delta-muted">
+          {summary.cashAvailablePct.toFixed(1)}% del portafolio
+        </div>
+      </div>
+    </div>
   );
 }

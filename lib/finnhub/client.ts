@@ -135,10 +135,12 @@ export async function fetchCompanyProfile(
   };
 }
 
-export async function fetchCompanyNames(
+// Nombre + industria en una sola pasada de /stock/profile2 por ticker
+// (evita duplicar llamadas si se necesitan ambos campos).
+export async function fetchCompanyProfiles(
   tickers: string[]
-): Promise<Map<string, string>> {
-  const nameMap = new Map<string, string>();
+): Promise<Map<string, { name: string; industry: string }>> {
+  const profileMap = new Map<string, { name: string; industry: string }>();
   const unique = [...new Set(tickers.map((t) => t.toUpperCase()))];
 
   const results = await Promise.allSettled(
@@ -148,11 +150,11 @@ export async function fetchCompanyNames(
   for (let i = 0; i < unique.length; i++) {
     const result = results[i];
     if (result.status === "fulfilled" && result.value) {
-      nameMap.set(unique[i], result.value.name);
+      profileMap.set(unique[i], { name: result.value.name, industry: result.value.industry });
     } else {
-      nameMap.set(unique[i], unique[i]); // fallback: usar el ticker
+      profileMap.set(unique[i], { name: unique[i], industry: "" }); // fallback: usar el ticker
     }
   }
 
-  return nameMap;
+  return profileMap;
 }

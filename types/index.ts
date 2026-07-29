@@ -51,6 +51,7 @@ export interface Quote {
 export interface Holding {
   ticker: string;
   companyName: string;
+  industry: string;
   shares: number;
   avgCost: number;
   currentPrice: number;
@@ -87,6 +88,10 @@ export interface PortfolioSummary {
   totalDailyChangePct: number;
   holdingsCount: number;
   cashFlow: CashFlowSummary;
+  cashAvailable: number;
+  cashAvailablePct: number;
+  totalReturn: number;
+  totalReturnPct: number;
   lastUpdated: string;
 }
 

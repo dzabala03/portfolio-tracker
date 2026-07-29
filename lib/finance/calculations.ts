@@ -67,6 +67,17 @@ export function calculateHoldingStates(
   return states;
 }
 
+// ─── Capital neto en mercado (todo el historial, no solo lo abierto) ─
+
+export function calculateNetCapitalInMarket(transactions: Transaction[]): number {
+  let net = 0;
+  for (const tx of transactions) {
+    if (tx.type === "BUY") net += tx.shares * tx.price + tx.fees;
+    else if (tx.type === "SELL") net -= tx.shares * tx.price - tx.fees;
+  }
+  return net;
+}
+
 // ─── Calcular flujos de caja (DIVIDEND, DEPOSIT, etc.) ───────
 
 export function calculateCashFlow(transactions: Transaction[]): CashFlowSummary {
@@ -103,7 +114,7 @@ export function calculateCashFlow(transactions: Transaction[]): CashFlowSummary 
 export function buildHoldings(
   states: Map<string, HoldingState>,
   quotes: Map<string, Quote>,
-  companyNames: Map<string, string>
+  companyProfiles: Map<string, { name: string; industry: string }>
 ): Holding[] {
   const partials: Omit<Holding, "weight">[] = [];
   let totalPortfolioValue = 0;
@@ -121,11 +132,13 @@ export function buildHoldings(
     const dailyChangePct   = quote.prevClose !== 0
       ? ((quote.currentPrice - quote.prevClose) / quote.prevClose) * 100
       : 0;
+    const profile = companyProfiles.get(ticker);
 
     totalPortfolioValue += currentValue;
     partials.push({
       ticker,
-      companyName: companyNames.get(ticker) ?? ticker,
+      companyName: profile?.name ?? ticker,
+      industry: profile?.industry || "Otros",
       shares: state.sharesHeld,
       avgCost: state.avgCost,
       currentPrice: quote.currentPrice,
@@ -152,7 +165,8 @@ export function buildHoldings(
 export function buildPortfolioSummary(
   holdings: Holding[],
   realizedPnLByTicker: Map<string, number>,
-  cashFlow: CashFlowSummary
+  cashFlow: CashFlowSummary,
+  netCapitalInMarket: number
 ): PortfolioSummary {
   const totalValue         = holdings.reduce((s, h) => s + h.currentValue, 0);
   const totalInvested      = holdings.reduce((s, h) => s + h.investedValue, 0);
@@ -168,6 +182,19 @@ export function buildPortfolioSummary(
     ? (totalDailyChange / prevTotalValue) * 100
     : 0;
 
+  // Efectivo disponible: lo que entró/salió de la cuenta menos lo que
+  // sigue puesto en el mercado a lo largo de toda la historia.
+  const cashAvailable = cashFlow.netCashFlow - netCapitalInMarket;
+  const totalNetWorth = totalValue + cashAvailable;
+  const cashAvailablePct = totalNetWorth !== 0 ? (cashAvailable / totalNetWorth) * 100 : 0;
+
+  // Rendimiento total desde el inicio, relativo al capital neto aportado
+  // (depósitos - retiros). Es un % simple, no TWR/XIRR.
+  const totalReturn =
+    totalUnrealizedPnL + totalRealizedPnL + cashFlow.totalDividends + cashFlow.totalInterest - cashFlow.totalFees;
+  const netContributed = cashFlow.totalDeposits - cashFlow.totalWithdrawals;
+  const totalReturnPct = netContributed !== 0 ? (totalReturn / netContributed) * 100 : 0;
+
   return {
     totalValue,
     totalInvested,
@@ -178,8 +205,43 @@ export function buildPortfolioSummary(
     totalDailyChangePct,
     holdingsCount: holdings.length,
     cashFlow,
+    cashAvailable,
+    cashAvailablePct,
+    totalReturn,
+    totalReturnPct,
     lastUpdated: new Date().toISOString(),
   };
+}
+
+// ─── Distribución por sector (industria de Finnhub + efectivo) ────
+
+export interface SectorAllocation {
+  name: string;
+  pct: number;
+}
+
+export function buildSectorAllocation(
+  holdings: Holding[],
+  cashAvailable: number
+): SectorAllocation[] {
+  const totalNetWorth = holdings.reduce((s, h) => s + h.currentValue, 0) + cashAvailable;
+  if (totalNetWorth <= 0) return [];
+
+  const byIndustry = new Map<string, number>();
+  for (const h of holdings) {
+    byIndustry.set(h.industry, (byIndustry.get(h.industry) ?? 0) + h.currentValue);
+  }
+
+  const allocation = Array.from(byIndustry.entries()).map(([name, value]) => ({
+    name,
+    pct: (value / totalNetWorth) * 100,
+  }));
+
+  if (cashAvailable > 0) {
+    allocation.push({ name: "Efectivo", pct: (cashAvailable / totalNetWorth) * 100 });
+  }
+
+  return allocation.sort((a, b) => b.pct - a.pct);
 }
 
 // ─── Helpers de formato ──────────────────────────────────────

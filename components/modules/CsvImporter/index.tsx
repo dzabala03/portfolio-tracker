@@ -3,7 +3,6 @@
 import { useState, useRef } from "react";
 import Papa from "papaparse";
 import type { NewTransaction, TransactionType, CsvImportResult } from "@/types";
-import { clsx } from "clsx";
 import { Upload, AlertCircle, CheckCircle, Loader2, FileText } from "lucide-react";
 
 // ─── Mapeo de tipos del broker → tipos internos ───────────────
@@ -228,83 +227,86 @@ export function CsvImporter({ onSuccess }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
       {/* Drop area */}
       <div
-        className={clsx(
-          "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors",
-          "border-border hover:border-accent/50 hover:bg-accent-subtle"
-        )}
+        style={{
+          border: "1px dashed var(--color-divider)",
+          borderRadius: "var(--radius-md)",
+          padding: "var(--space-6)",
+          textAlign: "center",
+          cursor: "pointer",
+        }}
         onClick={() => fileInputRef.current?.click()}
         onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
         role="button" tabIndex={0} aria-label="Seleccionar archivo CSV"
       >
-        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" aria-hidden="true" />
-        <Upload size={24} className="mx-auto mb-3 text-text-muted" />
-        <p className="text-text-secondary text-sm font-medium">
+        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} style={{ display: "none" }} aria-hidden="true" />
+        <Upload size={22} style={{ margin: "0 auto 10px", color: "var(--color-accent)", display: "block" }} />
+        <p style={{ fontSize: 14, margin: 0 }}>
           {fileName ?? "Arrastra un CSV o haz clic para seleccionar"}
         </p>
-        <p className="text-text-muted text-xs mt-1">Soporta el formato de tu broker y el formato estándar</p>
+        <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>Soporta el formato de tu broker y el formato estándar</p>
       </div>
 
       {/* Formato detectado */}
       {detectedFormat && (
-        <div className="bg-accent-subtle border border-accent/20 rounded-lg px-4 py-2">
-          <p className="text-accent text-xs">
-            {detectedFormat === "broker"
-              ? "✓ Formato de broker detectado — columnas mapeadas automáticamente"
-              : "✓ Formato estándar detectado"}
-          </p>
-        </div>
+        <p className="tag tag-accent" style={{ width: "fit-content" }}>
+          {detectedFormat === "broker"
+            ? "Formato de broker detectado — columnas mapeadas automáticamente"
+            : "Formato estándar detectado"}
+        </p>
       )}
 
       {/* Vista previa */}
       {preview && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="flex items-center gap-1.5 text-gain">
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-3)", fontSize: 13 }}>
+            <span className="gain" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <CheckCircle size={14} />{preview.valid.length} válidas
             </span>
             {preview.skipped > 0 && (
-              <span className="text-text-muted text-xs">{preview.skipped} ignoradas (journal/transfer)</span>
+              <span className="text-muted" style={{ fontSize: 12 }}>{preview.skipped} ignoradas (journal/transfer)</span>
             )}
             {preview.errors.length > 0 && (
-              <span className="flex items-center gap-1.5 text-loss">
+              <span className="loss" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <AlertCircle size={14} />{preview.errors.length} errores
               </span>
             )}
           </div>
 
           {preview.errors.length > 0 && (
-            <div className="bg-loss-subtle border border-loss/20 rounded-lg p-3 space-y-1 max-h-32 overflow-y-auto">
+            <div className="card" style={{ maxHeight: 128, overflowY: "auto", gap: 4 }}>
               {preview.errors.map((err) => (
-                <p key={err.row} className="text-loss text-xs">Fila {err.row}: {err.message}</p>
+                <p key={err.row} className="loss" style={{ fontSize: 12, margin: 0 }}>Fila {err.row}: {err.message}</p>
               ))}
             </div>
           )}
 
           {preview.valid.length > 0 && (
-            <div className="bg-elevated rounded-lg p-3 space-y-1.5 max-h-48 overflow-y-auto">
-              <p className="label mb-2">Vista previa</p>
+            <div className="card" style={{ maxHeight: 192, overflowY: "auto" }}>
+              <p className="kicker" style={{ margin: 0 }}>Vista previa</p>
               {preview.valid.slice(0, 6).map((tx, i) => (
-                <div key={i} className="flex gap-3 text-xs font-finance">
-                  <span className={clsx(
-                    "w-20",
-                    tx.type === "BUY" ? "text-gain" :
-                    tx.type === "SELL" ? "text-loss" :
-                    tx.type === "DIVIDEND" || tx.type === "DEPOSIT" || tx.type === "INTEREST" ? "text-accent" :
-                    "text-text-muted"
-                  )}>
+                <div key={i} className="num" style={{ display: "flex", gap: 12, fontSize: 12, textAlign: "left" }}>
+                  <span
+                    className={
+                      tx.type === "BUY" ? "gain" :
+                      tx.type === "SELL" ? "loss" :
+                      tx.type === "DIVIDEND" || tx.type === "DEPOSIT" || tx.type === "INTEREST" ? undefined :
+                      "text-muted"
+                    }
+                    style={{ width: 90, color: (tx.type === "DIVIDEND" || tx.type === "DEPOSIT" || tx.type === "INTEREST") ? "var(--color-accent)" : undefined }}
+                  >
                     {TYPE_LABELS[tx.type] ?? tx.type}
                   </span>
-                  <span className="text-text-primary font-semibold w-12">{tx.ticker}</span>
-                  {tx.shares > 0 && <span className="text-text-secondary">{tx.shares}x</span>}
-                  <span className="text-text-secondary">${tx.price}</span>
-                  <span className="text-text-muted">{tx.date}</span>
+                  <span style={{ fontWeight: 600, width: 48 }}>{tx.ticker}</span>
+                  {tx.shares > 0 && <span>{tx.shares}x</span>}
+                  <span>${tx.price}</span>
+                  <span className="text-muted">{tx.date}</span>
                 </div>
               ))}
               {preview.valid.length > 6 && (
-                <p className="text-text-muted text-xs">y {preview.valid.length - 6} más...</p>
+                <p className="text-muted" style={{ fontSize: 12, margin: 0 }}>y {preview.valid.length - 6} más...</p>
               )}
             </div>
           )}
@@ -312,7 +314,7 @@ export function CsvImporter({ onSuccess }: Props) {
           <button
             onClick={handleImport}
             disabled={isUploading || preview.valid.length === 0}
-            className="btn-primary w-full flex items-center justify-center gap-2"
+            className="btn btn-primary btn-block"
           >
             {isUploading
               ? <><Loader2 size={14} className="animate-spin" />Importando...</>
@@ -323,10 +325,10 @@ export function CsvImporter({ onSuccess }: Props) {
       )}
 
       {uploadResult && (
-        <div className="bg-gain-subtle border border-gain/20 rounded-lg px-4 py-3">
-          <p className="text-gain text-sm font-medium">✓ {uploadResult.imported} registros importados</p>
+        <div className="tag tag-gain" style={{ width: "100%", flexDirection: "column", alignItems: "flex-start", gap: 4, padding: "10px 12px" }}>
+          <p style={{ margin: 0, fontWeight: 600 }}>{uploadResult.imported} registros importados</p>
           {uploadResult.failed > 0 && (
-            <p className="text-loss text-xs mt-1">{uploadResult.failed} fallaron. Revisa los datos.</p>
+            <p className="loss" style={{ fontSize: 12, margin: 0 }}>{uploadResult.failed} fallaron. Revisa los datos.</p>
           )}
         </div>
       )}
