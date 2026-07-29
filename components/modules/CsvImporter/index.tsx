@@ -86,7 +86,9 @@ function parseBrokerDate(raw: string): string {
   if (!raw) return "";
   const parts = raw.split("/");
   if (parts.length !== 3) return raw;
-  const [month, day, year] = parts;
+  // El broker exporta "Closing Time" en formato DD/MM/YYYY (confirmado con
+  // filas como "30/06/2026", donde 30 no puede ser mes).
+  const [day, month, year] = parts;
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
 

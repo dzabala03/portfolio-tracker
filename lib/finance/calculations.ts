@@ -19,6 +19,11 @@ interface HoldingState {
   realizedPnL: number;
 }
 
+// Por debajo de esto, un resultado de aritmética de punto flotante
+// (ej. 1 + 0.64 - 0.64 - 1 = 1.11e-16) se trata como posición cerrada.
+// Ningún broker reporta fracciones de acción tan pequeñas.
+const SHARES_EPSILON = 1e-6;
+
 // ─── Calcular estados de holdings (solo BUY/SELL) ─────────────
 
 export function calculateHoldingStates(
@@ -26,7 +31,13 @@ export function calculateHoldingStates(
 ): Map<string, HoldingState> {
   const sorted = [...transactions]
     .filter((tx) => TRADING_TYPES.includes(tx.type))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort((a, b) => {
+      const byDate = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (byDate !== 0) return byDate;
+      // Mismo día: usar created_at para un orden determinista
+      // (el resultado de sumas/restas en punto flotante depende del orden).
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
 
   const states = new Map<string, HoldingState>();
 
@@ -47,7 +58,8 @@ export function calculateHoldingStates(
       const realizedOnSale =
         (tx.price - state.avgCost) * Math.min(tx.shares, state.sharesHeld) - tx.fees;
       state.realizedPnL += realizedOnSale;
-      state.sharesHeld = Math.max(0, state.sharesHeld - tx.shares);
+      const remaining = state.sharesHeld - tx.shares;
+      state.sharesHeld = remaining < SHARES_EPSILON ? 0 : remaining;
       if (state.sharesHeld === 0) state.avgCost = 0;
     }
   }

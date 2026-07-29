@@ -6,7 +6,7 @@ import {
   formatPercent,
   pnlColorClass,
 } from "@/lib/finance/calculations";
-import { TrendingUp, TrendingDown, DollarSign, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, Activity, Landmark } from "lucide-react";
 import { clsx } from "clsx";
 
 interface Props {
@@ -93,7 +93,7 @@ export function PortfolioSummaryCards({ summary }: Props) {
 
   return (
     <section aria-label="Resumen del portafolio">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Valor total */}
         <MetricCard
           title="Valor total"
@@ -101,6 +101,15 @@ export function PortfolioSummaryCards({ summary }: Props) {
           subValue={`${summary.holdingsCount} posición${summary.holdingsCount !== 1 ? "es" : ""}`}
           icon={<DollarSign size={16} className="text-accent" />}
           isHighlight
+        />
+
+        {/* Total depositado */}
+        <MetricCard
+          title="Total depositado"
+          value={formatCurrency(summary.cashFlow.totalDeposits)}
+          subValue={formatCurrency(summary.cashFlow.netCashFlow)}
+          subLabel="flujo neto de caja"
+          icon={<Landmark size={16} className="text-accent" />}
         />
 
         {/* Variación del día */}

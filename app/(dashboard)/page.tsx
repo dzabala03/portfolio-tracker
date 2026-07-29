@@ -169,8 +169,8 @@ export default function DashboardPage() {
             {data.summary ? (
               <PortfolioSummaryCards summary={data.summary} />
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => (
                   <div key={i} className="card h-28 animate-pulse bg-surface" />
                 ))}
               </div>
