@@ -592,6 +592,25 @@ porcentaje (ej. `netProfitMarginTTM: 27.62` = 27.62%, no 0.2762) — no
 hay que multiplicar por 100. Confirmado con datos reales de AAPL antes
 de asumir el formato.
 
+## Nota — pestañas de Mercados (Asia/Eur/US/Oil/Bonds/Gold/FX/Crypto/Pre-Mkt)
+
+`/api/market-indices?category=...` valida cada símbolo de Yahoo a mano
+antes de usarlo (índices `^AXJO`/`^N225`/`^NSEI`/`^HSI`/`000001.SS`/
+`^STOXX`/`^GDAXI`/`^FTSE`/`^FCHI`/`FTSEMIB.MI`; futuros `=F`; FX `=X`;
+cripto `-USD`). Un caso real que NO tiene fuente gratis: los rendimientos
+de bonos internacionales (Bund/JPN/UK/FRA 10-YR). Yahoo solo publica
+gratis el índice de rendimiento del Tesoro de EE.UU. (`^TNX`, ya viene
+en % directo, sin necesidad de dividir por 10) — probé ~15 variantes de
+ticker para los otros 4 países (formatos tipo `DE10Y=RR`,
+`TMBMKDE-10Y`, `^JGB10`, etc.) y ninguna resolvió. Esos 4 quedan con
+`symbol: ""` en el backend y la tarjeta muestra "Sin datos" — honesto
+en vez de fingir un número.
+
+También: instrumentos de bajo valor (ej. DOGE a $0.07) necesitan más
+decimales que el resto — con 2 fijos, el cambio absoluto redondeaba a
+"-0.00" y se perdía toda la magnitud del movimiento. `formatValue()` en
+`MarketIndices` usa 4 decimales cuando `|valor| < 1`, 2 en el resto.
+
 ---
 
 ## Advertencia

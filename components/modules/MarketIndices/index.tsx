@@ -15,6 +15,28 @@ interface IndexData {
   error: boolean;
 }
 
+type Category = "asia" | "eur" | "us" | "oil" | "bonds" | "gold" | "fx" | "crypto" | "premkt";
+
+const CATEGORIES: { key: Category; label: string }[] = [
+  { key: "asia",   label: "Asia" },
+  { key: "eur",    label: "Eur" },
+  { key: "us",     label: "US" },
+  { key: "oil",    label: "Oil" },
+  { key: "bonds",  label: "Bonds" },
+  { key: "gold",   label: "Gold" },
+  { key: "fx",     label: "FX" },
+  { key: "crypto", label: "Crypto" },
+  { key: "premkt", label: "Pre-Mkt" },
+];
+
+// Instrumentos de bajo valor (ej. DOGE a $0.07) necesitan más decimales —
+// con 2 fijos, el cambio absoluto redondea a "-0.00" y se pierde toda
+// la información de magnitud.
+function formatValue(value: number): string {
+  const decimals = Math.abs(value) < 1 ? 4 : 2;
+  return value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
 function formatTime(time: number, timezoneName: string, timezone: string): string {
   const time12 = new Intl.DateTimeFormat("en-US", {
     timeZone: timezoneName,
@@ -27,17 +49,18 @@ function formatTime(time: number, timezoneName: string, timezone: string): strin
 }
 
 export function MarketIndices() {
-  const [indices, setIndices] = useState<IndexData[] | null>(null);
+  const [category, setCategory] = useState<Category>("us");
+  const [cache, setCache] = useState<Partial<Record<Category, IndexData[]>>>({});
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const res = await fetch("/api/market-indices");
+        const res = await fetch(`/api/market-indices?category=${category}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
-        if (!cancelled) setIndices(json.indices);
+        if (!cancelled) setCache((prev) => ({ ...prev, [category]: json.indices }));
       } catch (err) {
         console.error("[MarketIndices]", err);
       }
@@ -49,11 +72,29 @@ export function MarketIndices() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [category]);
+
+  const indices = cache[category];
 
   return (
     <div className="layout">
       <div className="kicker" style={{ marginBottom: "var(--space-2)" }}>Mercados</div>
+
+      <div className="market-tabs" role="tablist" aria-label="Categoría de mercado">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            role="tab"
+            aria-selected={category === c.key}
+            className={clsx("market-tab", category === c.key && "active")}
+            onClick={() => setCategory(c.key)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
       <div className="market-indices">
         {(indices ?? Array.from({ length: 5 })).map((idx: any, i) => {
           if (!indices) {
@@ -73,11 +114,11 @@ export function MarketIndices() {
             <div key={data.key} className="card market-index-card">
               <span className="card-kicker">{data.label}</span>
               <span className="num" style={{ fontSize: 20, fontWeight: 600 }}>
-                {data.price!.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatValue(data.price!)}
               </span>
               <span className={clsx("num", up ? "gain" : "loss")} style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}>
                 {up ? "▲" : "▼"}
-                {up ? "+" : ""}{data.change!.toFixed(2)}
+                {up ? "+" : ""}{formatValue(data.change!)}
                 {" "}({up ? "+" : ""}{data.changePct!.toFixed(2)}%)
               </span>
               {data.time && (
