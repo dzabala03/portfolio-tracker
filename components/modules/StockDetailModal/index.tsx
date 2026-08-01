@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { X, Loader2, ExternalLink, AlertCircle } from "lucide-react";
 import { clsx } from "clsx";
@@ -49,7 +49,6 @@ interface StockDetailData {
   news: NewsItem[];
   recommendations: RecommendationTrend[];
   peers: string[];
-  priceHistory: DailyClose[];
 }
 
 interface Props {
@@ -60,6 +59,8 @@ interface Props {
 
 type Tab = "resumen" | "financials" | "news" | "analysts";
 type StatementKey = "ic" | "bs" | "cf";
+type Range = "MTD" | "1M" | "3M" | "6M" | "1Y" | "YTD" | "ALL";
+const RANGES: Range[] = ["MTD", "1M", "3M", "6M", "1Y", "YTD", "ALL"];
 
 const STATEMENT_LABELS: Record<StatementKey, string> = {
   ic: "Estado de resultados",
@@ -124,12 +125,16 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [statementKey, setStatementKey] = useState<StatementKey>("ic");
   const [reportIndex, setReportIndex] = useState(0);
+  const [range, setRange] = useState<Range>("1Y");
+  const [chartData, setChartData] = useState<DailyClose[]>([]);
+  const [isChartLoading, setIsChartLoading] = useState(true);
 
   useEffect(() => {
     setIsLoading(true);
     setError(null);
     setTab("resumen");
     setReportIndex(0);
+    setRange("1Y");
 
     fetch(`/api/stock-detail?ticker=${encodeURIComponent(ticker)}`)
       .then(async (res) => {
@@ -145,11 +150,39 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
       .finally(() => setIsLoading(false));
   }, [ticker]);
 
+  // Fetch separado del histórico de precios — así cambiar el rango del
+  // mini-gráfico no vuelve a pedir perfil/financieros/noticias. Guarda
+  // qué (ticker, rango) fue el último pedido para descartar respuestas
+  // que lleguen tarde y ya no correspondan a la selección actual.
+  const latestChartRequestRef = useRef<string>("");
+  useEffect(() => {
+    const requestKey = `${ticker}:${range}`;
+    latestChartRequestRef.current = requestKey;
+    setIsChartLoading(true);
+
+    fetch(`/api/stock-history?ticker=${encodeURIComponent(ticker)}&range=${range}`)
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+        return json;
+      })
+      .then((json) => {
+        if (latestChartRequestRef.current !== requestKey) return;
+        setChartData(json.priceHistory ?? []);
+      })
+      .catch((err) => {
+        if (latestChartRequestRef.current !== requestKey) return;
+        console.error("[StockDetailModal] history", err);
+        setChartData([]);
+      })
+      .finally(() => {
+        if (latestChartRequestRef.current === requestKey) setIsChartLoading(false);
+      });
+  }, [ticker, range]);
+
   const changeUp = (data?.quote?.change ?? 0) >= 0;
   const currentReport = data?.statements[reportIndex];
   const lineItems = currentReport?.report[statementKey] ?? [];
-
-  const chartData = useMemo(() => data?.priceHistory ?? [], [data]);
 
   return (
     <div role="dialog" aria-modal="true" aria-label={`Detalle de ${ticker}`} className="dialog-backdrop" onClick={onClose}>
@@ -207,16 +240,31 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
                   </div>
                 )}
 
-                {chartData.length > 1 && (
-                  <ResponsiveContainer width="100%" height={160}>
-                    <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-                      <XAxis dataKey="date" hide />
-                      <YAxis hide domain={["auto", "auto"]} />
-                      <Tooltip content={<ChartTooltip />} />
-                      <Line type="monotone" dataKey="close" stroke={COLOR_ACCENT} strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                )}
+                <div>
+                  <div className="seg" role="group" aria-label="Rango de tiempo" style={{ marginBottom: "var(--space-2)" }}>
+                    {RANGES.map((r) => (
+                      <label key={r} className="seg-opt">
+                        <input type="radio" name="stock-chart-range" checked={range === r} onChange={() => setRange(r)} />
+                        <span>{r}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {isChartLoading ? (
+                    <div className="chart-empty" style={{ height: 160 }}>Cargando…</div>
+                  ) : chartData.length > 1 ? (
+                    <ResponsiveContainer width="100%" height={160}>
+                      <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+                        <XAxis dataKey="date" hide />
+                        <YAxis hide domain={["auto", "auto"]} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Line type="monotone" dataKey="close" stroke={COLOR_ACCENT} strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="chart-empty" style={{ height: 160 }}>Sin historial de precios para este rango.</div>
+                  )}
+                </div>
 
                 <div className="quick-stats" style={{ marginTop: 0 }}>
                   <div className="qs-row">

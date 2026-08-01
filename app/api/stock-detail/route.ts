@@ -1,7 +1,9 @@
 // GET /api/stock-detail?ticker=AAPL → toda la info pública disponible
 // gratis de una acción: cotización, perfil, métricas, estados
-// financieros (as-reported), noticias, recomendaciones de analistas,
-// comparables y un histórico de precio de 1 año.
+// financieros (as-reported), noticias, recomendaciones de analistas y
+// comparables. El histórico de precio vive en /api/stock-history (con
+// su propio selector de rango) para no re-pedir todo esto cada vez que
+// el usuario cambia el rango del mini-gráfico.
 //
 // Dato público de mercado, no depende del usuario — no requiere sesión
 // (igual que /api/market-indices, /api/trm).
@@ -16,7 +18,6 @@ import {
   fetchRecommendationTrends,
   fetchPeers,
 } from "@/lib/finnhub/client";
-import { fetchDailyCloses } from "@/lib/yahoo/client";
 
 export const dynamic = "force-dynamic";
 
@@ -49,10 +50,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Parámetro 'ticker' requerido" }, { status: 400 });
   }
 
-  const toUnix = Math.floor(Date.now() / 1000);
-  const fromUnix = toUnix - 366 * 86_400;
-
-  const [quote, profile, financials, statements, news, recommendations, peers, priceHistory] =
+  const [quote, profile, financials, statements, news, recommendations, peers] =
     await Promise.all([
       safe(fetchQuote(ticker), null),
       safe(fetchFullCompanyProfile(ticker), null),
@@ -61,7 +59,6 @@ export async function GET(request: NextRequest) {
       safe(fetchCompanyNews(ticker, daysAgoISO(21), todayISO()), []),
       safe(fetchRecommendationTrends(ticker), []),
       safe(fetchPeers(ticker), []),
-      safe(fetchDailyCloses(ticker, fromUnix, toUnix), []),
     ]);
 
   if (!quote && !profile) {
@@ -77,6 +74,5 @@ export async function GET(request: NextRequest) {
     news,
     recommendations,
     peers,
-    priceHistory,
   });
 }

@@ -28,6 +28,7 @@ export interface PositionRow {
 interface Props {
   rows: PositionRow[];
   isLoading?: boolean;
+  onSelectTicker?: (ticker: string) => void;
 }
 
 type SortKey =
@@ -64,7 +65,7 @@ function SkeletonRow({ cols }: { cols: number }) {
   );
 }
 
-export function HoldingsTable({ rows, isLoading }: Props) {
+export function HoldingsTable({ rows, isLoading, onSelectTicker }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("currentValue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -76,15 +77,28 @@ export function HoldingsTable({ rows, isLoading }: Props) {
     const cols: ColumnDef[] = [
       {
         key: "ticker", label: "Activo", align: "left",
-        render: (row) => (
-          <>
-            <strong>{row.ticker}</strong>
-            <div className="tkr-name">
-              {row.companyName}
-              {!row.isOpen && " · vendida"}
-            </div>
-          </>
-        ),
+        render: (row) =>
+          onSelectTicker ? (
+            <button
+              type="button"
+              onClick={() => onSelectTicker(row.ticker)}
+              style={{ background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", font: "inherit", color: "inherit" }}
+            >
+              <strong style={{ textDecoration: "underline", textDecorationColor: "var(--color-divider)" }}>{row.ticker}</strong>
+              <div className="tkr-name">
+                {row.companyName}
+                {!row.isOpen && " · vendida"}
+              </div>
+            </button>
+          ) : (
+            <>
+              <strong>{row.ticker}</strong>
+              <div className="tkr-name">
+                {row.companyName}
+                {!row.isOpen && " · vendida"}
+              </div>
+            </>
+          ),
       },
       {
         key: "shares", label: "Cant.", align: "right",
@@ -174,7 +188,7 @@ export function HoldingsTable({ rows, isLoading }: Props) {
     );
 
     return cols;
-  }, [showPostMarket]);
+  }, [showPostMarket, onSelectTicker]);
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {

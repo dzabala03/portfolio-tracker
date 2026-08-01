@@ -276,7 +276,6 @@ export function CsvImporter({ onSuccess }: Props) {
         <p style={{ fontSize: 14, margin: 0 }}>
           {fileName ?? "Arrastra un CSV o haz clic para seleccionar"}
         </p>
-        <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>Soporta el formato de tu broker y el formato estándar</p>
       </div>
 
       {/* Formato detectado */}

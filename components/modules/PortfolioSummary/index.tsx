@@ -78,12 +78,6 @@ export function PortfolioSummaryCards({ summary }: Props) {
         <div className="delta delta-muted">
           {summary.cashAvailablePct.toFixed(1)}% del portafolio
         </div>
-        {summary.cashAvailable < 0 && (
-          <div className="perf-stat-caption" style={{ marginTop: 6 }}>
-            Puede salir levemente negativo por redondeo acumulado en comisiones de
-            cientos de transacciones — no significa que debas dinero.
-          </div>
-        )}
       </div>
     </div>
   );

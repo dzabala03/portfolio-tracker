@@ -5,8 +5,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } f
 
 // Deben mantenerse en sync con los tokens de app/globals.css — los
 // atributos SVG de recharts no resuelven var(--color-*).
-const COLOR_SIN_EFECTO = "#0088b0"; // cyan — mismo tono que la línea de valor en USD
-const COLOR_CON_EFECTO = "#ca8a04"; // ámbar — deliberadamente lejos de gain/loss
+const COLOR_GAIN = "#1a7a3c";
+const COLOR_LOSS = "#b3261e";
 const COLOR_DIVIDER = "#e3e1e0";
 
 type Range = "MTD" | "1M" | "3M" | "6M" | "1Y" | "YTD" | "ALL";
@@ -32,13 +32,43 @@ function formatChartDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("es-CO", { day: "2-digit", month: "short" }).replace(".", "");
 }
 
+// Un gradiente SVG por línea que cambia de color exactamente en el
+// punto donde cruza 0 — el mismo truco que usa PerformanceChart para
+// no tener ni una línea plana falsa (sentinel en 0) ni huecos visibles.
+// El eje X de Recharts reparte los puntos a distancia IGUAL por índice
+// (no por fecha real), así que el offset de cada stop es index/(n-1).
+function buildSignGradientStops(values: number[]): { offset: number; color: string }[] {
+  const n = values.length;
+  if (n === 0) return [];
+  if (n === 1) return [{ offset: 0, color: values[0] >= 0 ? COLOR_GAIN : COLOR_LOSS }];
+
+  const colorFor = (v: number) => (v >= 0 ? COLOR_GAIN : COLOR_LOSS);
+  const stops: { offset: number; color: string }[] = [];
+
+  for (let i = 0; i < n; i++) {
+    stops.push({ offset: i / (n - 1), color: colorFor(values[i]) });
+
+    if (i < n - 1) {
+      const v0 = values[i];
+      const v1 = values[i + 1];
+      if ((v0 >= 0) !== (v1 >= 0)) {
+        const t = v0 / (v0 - v1);
+        const crossOffset = (i + t) / (n - 1);
+        stops.push({ offset: crossOffset, color: colorFor(v0) });
+        stops.push({ offset: crossOffset, color: colorFor(v1) });
+      }
+    }
+  }
+  return stops;
+}
+
 function ValueTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="perf-tooltip">
       <div>{formatChartDate(label)}</div>
       {payload.map((p: any) => (
-        <div key={p.dataKey} style={{ color: p.stroke, fontWeight: 600 }}>
+        <div key={p.dataKey} style={{ color: p.value >= 0 ? COLOR_GAIN : COLOR_LOSS, fontWeight: 600 }}>
           {p.name}: {formatCOP(p.value)}
         </div>
       ))}
@@ -54,7 +84,7 @@ function PctTooltip({ active, payload, label }: any) {
       {payload.map((p: any) => {
         if (p.value === undefined || p.value === null) return null;
         return (
-          <div key={p.dataKey} style={{ color: p.stroke, fontWeight: 600 }}>
+          <div key={p.dataKey} style={{ color: p.value >= 0 ? COLOR_GAIN : COLOR_LOSS, fontWeight: 600 }}>
             {p.name}: {p.value >= 0 ? "+" : ""}{p.value.toFixed(2)}%
           </div>
         );
@@ -110,8 +140,18 @@ export function PesosCOPChart() {
     return Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : 1));
   }, [data]);
 
-  const chartData = mode === "valor" ? (data?.valueSeries ?? []) : mergedPct;
+  const chartData: { date: string; sinEfecto?: number; conEfecto?: number }[] =
+    mode === "valor" ? (data?.valueSeries ?? []) : mergedPct;
   const hasSeries = chartData.length >= 2;
+
+  const sinEfectoStops = useMemo(
+    () => buildSignGradientStops(chartData.map((d) => d.sinEfecto ?? 0)),
+    [chartData]
+  );
+  const conEfectoStops = useMemo(
+    () => buildSignGradientStops(chartData.map((d) => d.conEfecto ?? 0)),
+    [chartData]
+  );
 
   return (
     <div className="chart-wrap">
@@ -153,6 +193,18 @@ export function PesosCOPChart() {
       {!isLoading && !error && hasSeries && (
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={chartData} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
+            <defs>
+              <linearGradient id="copSinEfectoStroke" x1="0" y1="0" x2="1" y2="0">
+                {sinEfectoStops.map((s, i) => (
+                  <stop key={i} offset={s.offset} stopColor={s.color} />
+                ))}
+              </linearGradient>
+              <linearGradient id="copConEfectoStroke" x1="0" y1="0" x2="1" y2="0">
+                {conEfectoStops.map((s, i) => (
+                  <stop key={i} offset={s.offset} stopColor={s.color} />
+                ))}
+              </linearGradient>
+            </defs>
             <XAxis
               dataKey="date" tickFormatter={formatChartDate}
               tick={{ fontSize: 11, fill: "#8a8685" }} axisLine={{ stroke: COLOR_DIVIDER }}
@@ -168,11 +220,11 @@ export function PesosCOPChart() {
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Line
               type="monotone" dataKey="sinEfecto" name={mode === "valor" ? "Valor sin efecto TRM" : "Rendimiento sin efecto TRM"}
-              stroke={COLOR_SIN_EFECTO} strokeWidth={2} dot={false} connectNulls
+              stroke="url(#copSinEfectoStroke)" strokeWidth={2} dot={false} connectNulls
             />
             <Line
               type="monotone" dataKey="conEfecto" name={mode === "valor" ? "Valor con efecto TRM" : "Rendimiento con efecto TRM"}
-              stroke={COLOR_CON_EFECTO} strokeWidth={2} dot={false} connectNulls
+              stroke="url(#copConEfectoStroke)" strokeWidth={2} strokeDasharray="6 4" dot={false} connectNulls
             />
           </LineChart>
         </ResponsiveContainer>

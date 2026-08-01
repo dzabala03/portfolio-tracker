@@ -472,7 +472,7 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-            <HoldingsTable rows={visibleHoldings} isLoading={isLoading} />
+            <HoldingsTable rows={visibleHoldings} isLoading={isLoading} onSelectTicker={setSearchTicker} />
           </div>
 
           {/* ─── Transacciones recientes ──────────────────── */}
