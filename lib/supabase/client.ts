@@ -1,48 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// SUPABASE CLIENT
-// Dos instancias según el contexto:
-//   - browserClient: componentes React del lado cliente
-//   - serverClient: API routes (usa service role, no expuesto)
+// SUPABASE — helpers de datos (transacciones y fondeos)
+// Reciben el cliente como parámetro (creado en cada Route Handler
+// vía lib/supabase/server.ts, con la sesión del usuario) para que
+// las políticas RLS filtren cada tabla por auth.uid() automático —
+// estas funciones no conocen ni necesitan el id del usuario.
 // ─────────────────────────────────────────────────────────────
 
-import { createClient } from "@supabase/supabase-js";
-import type { Transaction } from "@/types";
-
-const supabaseUrl      = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey  = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
-const serviceRoleKey   = process.env.SUPABASE_SECRET_KEY!;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "[Supabase] Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY en .env.local"
-  );
-}
-
-// Cliente público — solo para uso en componentes cliente si se necesita
-export const browserClient = createClient(supabaseUrl, supabaseAnonKey);
-
-// Cliente de servidor — solo en API routes, nunca en componentes cliente
-// Usa service role para operaciones CRUD sin restricciones RLS
-export function getServerClient() {
-  if (!serviceRoleKey) {
-    throw new Error(
-      "[Supabase] Falta SUPABASE_SERVICE_ROLE_KEY en .env.local. Solo necesario en el servidor."
-    );
-  }
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-    // Next.js parchea `fetch` y cachea los GET en la Data Cache (disco).
-    // Sin esto, PostgREST devuelve para siempre el primer resultado obtenido.
-    global: {
-      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
-    },
-  });
-}
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Transaction, BrokerFunding, NewBrokerFunding } from "@/types";
 
 // ─── Helpers de transacciones ────────────────────────────────
 
-export async function fetchAllTransactions(): Promise<Transaction[]> {
-  const supabase = getServerClient();
+export async function fetchAllTransactions(supabase: SupabaseClient): Promise<Transaction[]> {
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
@@ -53,9 +22,9 @@ export async function fetchAllTransactions(): Promise<Transaction[]> {
 }
 
 export async function insertTransaction(
+  supabase: SupabaseClient,
   tx: Omit<Transaction, "id" | "created_at">
 ): Promise<Transaction> {
-  const supabase = getServerClient();
   const { data, error } = await supabase
     .from("transactions")
     .insert(tx)
@@ -66,8 +35,83 @@ export async function insertTransaction(
   return data;
 }
 
-export async function deleteTransaction(id: string): Promise<void> {
-  const supabase = getServerClient();
+export async function deleteTransaction(supabase: SupabaseClient, id: string): Promise<void> {
   const { error } = await supabase.from("transactions").delete().eq("id", id);
   if (error) throw new Error(`[Supabase] deleteTransaction: ${error.message}`);
+}
+
+// ─── Helpers de fondeos del broker (sección Pesos COP) ────────
+
+export async function fetchAllBrokerFundings(supabase: SupabaseClient): Promise<BrokerFunding[]> {
+  const { data, error } = await supabase
+    .from("broker_fundings")
+    .select("*")
+    .order("date", { ascending: false });
+
+  if (error) throw new Error(`[Supabase] fetchAllBrokerFundings: ${error.message}`);
+  return data ?? [];
+}
+
+// Por defecto, un fondeo viene con su depósito: primero se crea la
+// transacción DEPOSIT (afecta efectivo/rendimiento en USD como
+// cualquier depósito normal), luego el detalle en pesos que la
+// referencia. Si el segundo insert falla, se revierte el primero —
+// PostgREST no da transacciones multi-tabla vía REST.
+// Si `include_in_portfolio` es false (fondeo histórico ya contabilizado
+// por otra vía), no se crea el DEPOSIT y `transaction_id` queda NULL.
+export async function insertBrokerFundingWithDeposit(
+  supabase: SupabaseClient,
+  funding: NewBrokerFunding,
+  feeUsd: number,
+  feeCop: number
+): Promise<BrokerFunding> {
+  const { include_in_portfolio, ...fundingRow } = funding;
+
+  let transactionId: string | null = null;
+  if (include_in_portfolio) {
+    const depositNote = `Fondeo vía ${funding.broker_method} — TRM ${funding.trm.toFixed(2)}`;
+    const transaction = await insertTransaction(supabase, {
+      ticker: "CASH",
+      type: "DEPOSIT",
+      shares: 0,
+      price: funding.usd_amount,
+      fees: 0,
+      date: funding.date,
+      notes: funding.notes ? `${depositNote}. ${funding.notes}` : depositNote,
+    });
+    transactionId = transaction.id;
+  }
+
+  const { data, error } = await supabase
+    .from("broker_fundings")
+    .insert({ ...fundingRow, transaction_id: transactionId, fee_usd: feeUsd, fee_cop: feeCop })
+    .select()
+    .single();
+
+  if (error) {
+    if (transactionId) await deleteTransaction(supabase, transactionId); // revertir el depósito huérfano
+    throw new Error(`[Supabase] insertBrokerFundingWithDeposit: ${error.message}`);
+  }
+  return data;
+}
+
+// Si el fondeo tiene un DEPOSIT vinculado, borrar la transacción hace
+// cascade sobre broker_fundings (FK ON DELETE CASCADE). Si no lo tiene
+// (transaction_id NULL), hay que borrar la fila directamente.
+export async function deleteBrokerFunding(supabase: SupabaseClient, id: string): Promise<void> {
+  const { data, error: fetchError } = await supabase
+    .from("broker_fundings")
+    .select("transaction_id")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) throw new Error(`[Supabase] deleteBrokerFunding (fetch): ${fetchError.message}`);
+
+  if (data.transaction_id) {
+    await deleteTransaction(supabase, data.transaction_id);
+    return;
+  }
+
+  const { error } = await supabase.from("broker_fundings").delete().eq("id", id);
+  if (error) throw new Error(`[Supabase] deleteBrokerFunding: ${error.message}`);
 }

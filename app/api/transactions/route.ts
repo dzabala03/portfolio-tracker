@@ -7,6 +7,7 @@ import {
   fetchAllTransactions,
   insertTransaction,
 } from "@/lib/supabase/client";
+import { requireUser } from "@/lib/supabase/server";
 import { TRADING_TYPES, CASH_TYPES, type NewTransaction } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,10 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    const transactions = await fetchAllTransactions();
+    const { supabase, user } = await requireUser();
+    if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+    const transactions = await fetchAllTransactions(supabase);
     return NextResponse.json(transactions);
   } catch (error) {
     console.error("[GET /api/transactions]", error);
@@ -27,6 +31,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const { supabase, user } = await requireUser();
+    if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
     const body: NewTransaction = await request.json();
 
     // Validación básica
@@ -78,7 +85,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tx = await insertTransaction({
+    const tx = await insertTransaction(supabase, {
       ...body,
       ticker: body.ticker.toUpperCase(),
       shares: isTrade ? body.shares : 0,

@@ -32,6 +32,39 @@ export interface Transaction {
 
 export type NewTransaction = Omit<Transaction, "id" | "created_at">;
 
+// ─── Fondeos del broker desde Colombia (sección Pesos COP) ───
+
+export type FeeCurrency = "USD" | "COP";
+
+export interface BrokerFunding {
+  id: string;
+  transaction_id: string | null; // null = no se creó DEPOSIT — no cuenta para el portafolio USD
+  broker_method: string; // "ARQ", "Global66", "Otro: ...", etc.
+  trm: number;
+  usd_amount: number;
+  fee_amount: number;    // en la moneda original que se pagó
+  fee_currency: FeeCurrency;
+  fee_usd: number;       // ya convertida
+  fee_cop: number;       // ya convertida
+  date: string;
+  notes?: string;
+  created_at: string;
+}
+
+export type NewBrokerFunding = Omit<BrokerFunding, "id" | "transaction_id" | "fee_usd" | "fee_cop" | "created_at"> & {
+  include_in_portfolio: boolean; // si es false, no se crea la transacción DEPOSIT
+};
+
+// ─── TRM (Tasa Representativa del Mercado, Colombia) ──────────
+
+export interface TrmQuote {
+  value: number;
+  previousValue: number;
+  change: number;
+  changePct: number;
+  date: string;
+}
+
 // ─── Precios de mercado (Finnhub) ────────────────────────────
 
 export interface Quote {
@@ -59,10 +92,30 @@ export interface Holding {
   investedValue: number;
   unrealizedPnL: number;
   unrealizedPnLPct: number;
+  realizedPnL: number;   // ganado/perdido en ventas pasadas de este ticker (histórico completo)
+  totalPnL: number;      // realizedPnL + unrealizedPnL — ganancia/pérdida de toda la relación con el ticker
   dailyChange: number;
   dailyChangePct: number;
   prevClose: number;
   weight: number;
+
+  // Próximos earnings — null si Finnhub no tiene todavía una fecha en el rango consultado.
+  nextEarningsDate: string | null;
+  earningsTiming: "bmo" | "amc" | "" | null; // antes de apertura / después de cierre / sin confirmar
+
+  // Post-market — solo se calculan durante la ventana 4-8pm ET; null fuera de ella.
+  postMarketPrice: number | null;
+  postMarketChange: number | null;
+  postMarketChangePct: number | null;
+}
+
+// ─── Posiciones cerradas (ya no se tienen, pero se operaron alguna vez) ──
+
+export interface ClosedPosition {
+  ticker: string;
+  companyName: string;
+  industry: string;
+  realizedPnL: number; // ganancia/pérdida total de este ticker, ya cerrado
 }
 
 // ─── Resumen de flujos de caja ───────────────────────────────
@@ -93,6 +146,10 @@ export interface PortfolioSummary {
   totalReturn: number;
   totalReturnPct: number;
   lastUpdated: string;
+
+  // Post-market agregado — null fuera de la ventana 4-8pm ET.
+  postMarketChange: number | null;
+  postMarketChangePct: number | null;
 }
 
 // ─── CSV Import ──────────────────────────────────────────────

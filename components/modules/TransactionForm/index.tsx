@@ -8,6 +8,19 @@ interface Props {
   onSuccess?: () => void;
 }
 
+const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
+  { value: "BUY", label: "Compra" },
+  { value: "SELL", label: "Venta" },
+  { value: "DIVIDEND", label: "Dividendo" },
+  { value: "DEPOSIT", label: "Depósito" },
+  { value: "WITHDRAWAL", label: "Retiro" },
+  { value: "INTEREST", label: "Interés" },
+  { value: "FEE", label: "Comisión / impuesto" },
+];
+
+const TRADE_TYPES: TransactionType[] = ["BUY", "SELL"];
+const CASH_ONLY_TYPES: TransactionType[] = ["DEPOSIT", "WITHDRAWAL", "INTEREST", "FEE"];
+
 const EMPTY_FORM: Omit<NewTransaction, "fees"> & { fees: string } = {
   ticker: "",
   type: "BUY",
@@ -24,11 +37,22 @@ export function TransactionForm({ onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const isTrade = TRADE_TYPES.includes(form.type as TransactionType);
+  const isCashOnly = CASH_ONLY_TYPES.includes(form.type as TransactionType);
+  const isDividend = form.type === "DIVIDEND";
+  const showTicker = isTrade || isDividend;
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setError(null);
+    setSuccess(false);
+  }
+
+  function handleTypeChange(type: TransactionType) {
+    setForm((prev) => ({ ...prev, type, shares: TRADE_TYPES.includes(type) ? prev.shares : 0 }));
     setError(null);
     setSuccess(false);
   }
@@ -39,9 +63,9 @@ export function TransactionForm({ onSuccess }: Props) {
     setError(null);
 
     const payload: NewTransaction = {
-      ticker: form.ticker.toUpperCase().trim(),
+      ticker: (isCashOnly ? "CASH" : form.ticker).toUpperCase().trim(),
       type: form.type as TransactionType,
-      shares: Number(form.shares),
+      shares: isTrade ? Number(form.shares) : 0,
       price: Number(form.price),
       date: form.date,
       fees: form.fees === "" ? 0 : Number(form.fees),
@@ -60,7 +84,7 @@ export function TransactionForm({ onSuccess }: Props) {
         throw new Error(data.error ?? "Error desconocido");
       }
 
-      setForm(EMPTY_FORM);
+      setForm({ ...EMPTY_FORM, type: form.type }); // conserva el tipo elegido, útil si vas a registrar varios seguidos
       setSuccess(true);
       onSuccess?.();
     } catch (err) {
@@ -72,78 +96,96 @@ export function TransactionForm({ onSuccess }: Props) {
 
   return (
     <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-      {/* Tipo: BUY / SELL */}
+      {/* Tipo */}
       <div className="field">
-        <label>Tipo</label>
-        <div className="seg" style={{ display: "flex", width: "100%" }}>
-          {(["BUY", "SELL"] as TransactionType[]).map((t) => (
-            <label key={t} className="seg-opt" style={{ flex: 1, justifyContent: "center" }}>
-              <input
-                type="radio"
-                name="type"
-                checked={form.type === t}
-                onChange={() => setForm((p) => ({ ...p, type: t }))}
-              />
-              <span>{t === "BUY" ? "Compra" : "Venta"}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Ticker */}
-      <div className="field">
-        <label htmlFor="ticker">Ticker</label>
-        <input
-          id="ticker"
-          name="ticker"
-          type="text"
-          required
-          placeholder="AAPL"
-          value={form.ticker}
-          onChange={handleChange}
+        <label htmlFor="type">Tipo</label>
+        <select
+          id="type"
+          name="type"
+          value={form.type}
+          onChange={(e) => handleTypeChange(e.target.value as TransactionType)}
           className="input"
-          style={{ textTransform: "uppercase" }}
-          maxLength={10}
-          aria-describedby="ticker-hint"
-        />
-        <p id="ticker-hint" className="text-muted" style={{ fontSize: 12, margin: "5px 0 0" }}>
-          Símbolo de NYSE / NASDAQ
-        </p>
+        >
+          {TYPE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Acciones + Precio */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+      {/* Ticker — solo compra/venta/dividendo */}
+      {showTicker && (
         <div className="field">
-          <label htmlFor="shares">Acciones</label>
+          <label htmlFor="ticker">Ticker{isDividend ? " (acción que pagó el dividendo)" : ""}</label>
           <input
-            id="shares"
-            name="shares"
-            type="number"
+            id="ticker"
+            name="ticker"
+            type="text"
             required
-            min="0.000001"
-            step="any"
-            placeholder="10"
-            value={form.shares || ""}
+            placeholder="AAPL"
+            value={form.ticker}
             onChange={handleChange}
             className="input"
+            style={{ textTransform: "uppercase" }}
+            maxLength={10}
+            aria-describedby="ticker-hint"
           />
+          <p id="ticker-hint" className="text-muted" style={{ fontSize: 12, margin: "5px 0 0" }}>
+            Símbolo de NYSE / NASDAQ
+          </p>
         </div>
+      )}
+
+      {/* Acciones + Precio (trades) — Monto (dividendo / efectivo) */}
+      {isTrade ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+          <div className="field">
+            <label htmlFor="shares">Acciones</label>
+            <input
+              id="shares"
+              name="shares"
+              type="number"
+              required
+              min="0.000001"
+              step="any"
+              placeholder="10"
+              value={form.shares || ""}
+              onChange={handleChange}
+              className="input"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="price">Precio por acción (USD)</label>
+            <input
+              id="price"
+              name="price"
+              type="number"
+              required
+              min="0.0001"
+              step="any"
+              placeholder="185.50"
+              value={form.price || ""}
+              onChange={handleChange}
+              className="input"
+            />
+          </div>
+        </div>
+      ) : (
         <div className="field">
-          <label htmlFor="price">Precio (USD)</label>
+          <label htmlFor="price">Monto (USD)</label>
           <input
             id="price"
             name="price"
             type="number"
             required
-            min="0.0001"
+            min="0"
             step="any"
-            placeholder="185.50"
+            placeholder="100.00"
             value={form.price || ""}
             onChange={handleChange}
             className="input"
           />
         </div>
-      </div>
+      )}
 
       {/* Fecha + Comisiones */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
@@ -190,8 +232,8 @@ export function TransactionForm({ onSuccess }: Props) {
         />
       </div>
 
-      {/* Total calculado */}
-      {form.shares > 0 && form.price > 0 && (
+      {/* Total calculado — solo tiene sentido en compra/venta */}
+      {isTrade && form.shares > 0 && form.price > 0 && (
         <div className="card" style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <span className="text-muted" style={{ fontSize: 12 }}>Total operación</span>
           <span className="num" style={{ fontWeight: 600, fontSize: 15 }}>

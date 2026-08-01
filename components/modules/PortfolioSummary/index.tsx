@@ -25,9 +25,20 @@ function DeltaArrow({ up }: { up: boolean }) {
 export function PortfolioSummaryCards({ summary }: Props) {
   const dailyUp = summary.totalDailyChange >= 0;
   const returnUp = summary.totalReturn >= 0;
+  const hasPostMarket = summary.postMarketChange !== null;
+  const postMarketUp = (summary.postMarketChange ?? 0) >= 0;
 
   return (
     <div className="summary">
+      {/* Total depositado */}
+      <div>
+        <div className="kicker">Total depositado</div>
+        <div className="big-num" style={{ fontSize: 30 }}>
+          {formatCurrency(summary.cashFlow.totalDeposits)}
+        </div>
+        <div className="delta delta-muted">capital aportado en USD</div>
+      </div>
+
       {/* Valor total del portafolio */}
       <div>
         <div className="kicker">Valor total del portafolio</div>
@@ -37,6 +48,13 @@ export function PortfolioSummaryCards({ summary }: Props) {
           {dailyUp ? "+" : ""}
           {formatCurrency(summary.totalDailyChange)} ({formatPercent(summary.totalDailyChangePct)}) hoy
         </div>
+        {hasPostMarket && (
+          <div className={clsx("delta", "post-market-delta", postMarketUp ? "up" : "down")}>
+            <DeltaArrow up={postMarketUp} />
+            {postMarketUp ? "+" : ""}
+            {formatCurrency(summary.postMarketChange!)} ({formatPercent(summary.postMarketChangePct!)}) pos-market
+          </div>
+        )}
       </div>
 
       {/* Rendimiento total */}
@@ -60,6 +78,12 @@ export function PortfolioSummaryCards({ summary }: Props) {
         <div className="delta delta-muted">
           {summary.cashAvailablePct.toFixed(1)}% del portafolio
         </div>
+        {summary.cashAvailable < 0 && (
+          <div className="perf-stat-caption" style={{ marginTop: 6 }}>
+            Puede salir levemente negativo por redondeo acumulado en comisiones de
+            cientos de transacciones — no significa que debas dinero.
+          </div>
+        )}
       </div>
     </div>
   );

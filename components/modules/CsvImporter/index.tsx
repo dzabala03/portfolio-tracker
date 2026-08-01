@@ -3,7 +3,8 @@
 import { useState, useRef } from "react";
 import Papa from "papaparse";
 import type { NewTransaction, TransactionType, CsvImportResult } from "@/types";
-import { Upload, AlertCircle, CheckCircle, Loader2, FileText } from "lucide-react";
+import { Upload, AlertCircle, CheckCircle, Loader2, FileText, Download } from "lucide-react";
+import { downloadCsv } from "@/lib/utils/csv";
 
 // ─── Mapeo de tipos del broker → tipos internos ───────────────
 // Agrega aquí cualquier tipo nuevo que aparezca en tu CSV
@@ -161,6 +162,22 @@ function parseCsvRows(rows: Record<string, string>[]): CsvImportResult {
   return { valid, errors, skipped };
 }
 
+// ─── Formato de ejemplo descargable ───────────────────────────
+// Una fila por cada tipo de transacción soportado, con valores
+// ficticios pero realistas — así se ve exactamente cómo van los
+// campos de cada caso (compra/venta con acciones y precio; los
+// movimientos de efectivo con shares=0 y el monto en price).
+
+export const SAMPLE_TRANSACTIONS_CSV = `ticker,type,shares,price,fees,date,notes
+AAPL,BUY,10,185.50,1.00,2026-01-15,Compra inicial
+AAPL,SELL,4,210.30,1.00,2026-03-10,Venta parcial
+AAPL,DIVIDEND,0,12.40,0,2026-02-15,Dividendo trimestral
+CASH,DEPOSIT,0,500.00,0,2026-01-01,Depósito inicial
+CASH,WITHDRAWAL,0,100.00,0,2026-04-01,Retiro
+CASH,FEE,0,5.00,0,2026-01-31,Comisión mensual
+CASH,INTEREST,0,2.35,0,2026-02-28,Interés generado
+`;
+
 // ─── Labels para mostrar en UI ────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
@@ -228,6 +245,19 @@ export function CsvImporter({ onSuccess }: Props) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      <div className="card" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <span className="kicker" style={{ margin: 0 }}>Formato necesario de ejemplo</span>
+        <button
+          type="button"
+          className="btn btn-icon icon-btn"
+          aria-label="Descargar formato de ejemplo (CSV)"
+          title="Descargar formato de ejemplo (CSV)"
+          onClick={() => downloadCsv("ejemplo-transacciones.csv", SAMPLE_TRANSACTIONS_CSV)}
+        >
+          <Download size={16} color="var(--color-accent)" />
+        </button>
+      </div>
+
       {/* Drop area */}
       <div
         style={{
