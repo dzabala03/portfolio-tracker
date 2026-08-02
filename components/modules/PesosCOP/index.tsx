@@ -2,6 +2,7 @@
 
 import type { PortfolioSummary, TrmQuote } from "@/types";
 import { clsx } from "clsx";
+import { PriceAlertsPanel } from "@/components/modules/PriceAlertsPanel";
 
 interface Props {
   summary: PortfolioSummary | null;
@@ -51,6 +52,10 @@ export function PesosCOP({ summary, trm, totalFeesCop, totalCopEnviado, isLoadin
         ) : (
           <span className="text-muted" style={{ fontSize: 12 }}>{isLoading ? "Cargando…" : "Sin dato"}</span>
         )}
+      </div>
+
+      <div style={{ marginBottom: "var(--space-6)" }}>
+        <PriceAlertsPanel kind="trm" />
       </div>
 
       {/* ─── Fila 1: sin efecto de la TRM ──────────────────── */}

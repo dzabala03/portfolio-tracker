@@ -55,6 +55,33 @@ export type NewBrokerFunding = Omit<BrokerFunding, "id" | "transaction_id" | "fe
   include_in_portfolio: boolean; // si es false, no se crea la transacción DEPOSIT
 };
 
+// ─── Watchlist ────────────────────────────────────────────────
+
+export interface WatchlistItem {
+  id: string;
+  ticker: string;
+  created_at: string;
+}
+
+export type NewWatchlistItem = { ticker: string };
+
+// ─── Alertas de precio (acciones y TRM) ───────────────────────
+
+export type AlertKind = "stock" | "trm";
+export type AlertDirection = "above" | "below";
+
+export interface PriceAlert {
+  id: string;
+  kind: AlertKind;
+  ticker: string | null; // null para kind === "trm"
+  direction: AlertDirection;
+  threshold: number;
+  last_notified_date: string | null;
+  created_at: string;
+}
+
+export type NewPriceAlert = Omit<PriceAlert, "id" | "last_notified_date" | "created_at">;
+
 // ─── TRM (Tasa Representativa del Mercado, Colombia) ──────────
 
 export interface TrmQuote {

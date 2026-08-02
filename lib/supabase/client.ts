@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Transaction, BrokerFunding, NewBrokerFunding } from "@/types";
+import type { Transaction, BrokerFunding, NewBrokerFunding, WatchlistItem, PriceAlert, NewPriceAlert } from "@/types";
 
 // ─── Helpers de transacciones ────────────────────────────────
 
@@ -114,4 +114,60 @@ export async function deleteBrokerFunding(supabase: SupabaseClient, id: string):
 
   const { error } = await supabase.from("broker_fundings").delete().eq("id", id);
   if (error) throw new Error(`[Supabase] deleteBrokerFunding: ${error.message}`);
+}
+
+// ─── Helpers de watchlist ───────────────────────────────────────
+
+export async function fetchWatchlist(supabase: SupabaseClient): Promise<WatchlistItem[]> {
+  const { data, error } = await supabase
+    .from("watchlist")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`[Supabase] fetchWatchlist: ${error.message}`);
+  return data ?? [];
+}
+
+export async function insertWatchlistItem(supabase: SupabaseClient, ticker: string): Promise<WatchlistItem> {
+  const { data, error } = await supabase
+    .from("watchlist")
+    .insert({ ticker })
+    .select()
+    .single();
+
+  if (error) throw new Error(`[Supabase] insertWatchlistItem: ${error.message}`);
+  return data;
+}
+
+export async function deleteWatchlistItem(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("watchlist").delete().eq("id", id);
+  if (error) throw new Error(`[Supabase] deleteWatchlistItem: ${error.message}`);
+}
+
+// ─── Helpers de alertas de precio ──────────────────────────────
+
+export async function fetchPriceAlerts(supabase: SupabaseClient): Promise<PriceAlert[]> {
+  const { data, error } = await supabase
+    .from("price_alerts")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`[Supabase] fetchPriceAlerts: ${error.message}`);
+  return data ?? [];
+}
+
+export async function insertPriceAlert(supabase: SupabaseClient, alert: NewPriceAlert): Promise<PriceAlert> {
+  const { data, error } = await supabase
+    .from("price_alerts")
+    .insert(alert)
+    .select()
+    .single();
+
+  if (error) throw new Error(`[Supabase] insertPriceAlert: ${error.message}`);
+  return data;
+}
+
+export async function deletePriceAlert(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from("price_alerts").delete().eq("id", id);
+  if (error) throw new Error(`[Supabase] deletePriceAlert: ${error.message}`);
 }

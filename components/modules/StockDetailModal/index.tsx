@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { X, Loader2, ExternalLink, AlertCircle } from "lucide-react";
+import { X, Loader2, ExternalLink, AlertCircle, Star } from "lucide-react";
 import { clsx } from "clsx";
+import { PriceAlertsPanel } from "@/components/modules/PriceAlertsPanel";
 
 interface Quote {
   currentPrice: number;
@@ -128,6 +129,8 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
   const [range, setRange] = useState<Range>("1Y");
   const [chartData, setChartData] = useState<DailyClose[]>([]);
   const [isChartLoading, setIsChartLoading] = useState(true);
+  const [watchlistId, setWatchlistId] = useState<string | null>(null);
+  const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
 
   useEffect(() => {
     setIsLoading(true);
@@ -135,6 +138,14 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
     setTab("resumen");
     setReportIndex(0);
     setRange("1Y");
+    setWatchlistId(null);
+
+    fetch("/api/watchlist")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((list: { id: string; ticker: string }[]) => {
+        setWatchlistId(list.find((i) => i.ticker === ticker)?.id ?? null);
+      })
+      .catch(() => {});
 
     fetch(`/api/stock-detail?ticker=${encodeURIComponent(ticker)}`)
       .then(async (res) => {
@@ -180,6 +191,30 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
       });
   }, [ticker, range]);
 
+  async function handleToggleWatchlist() {
+    setIsTogglingWatchlist(true);
+    try {
+      if (watchlistId) {
+        const res = await fetch(`/api/watchlist/${watchlistId}`, { method: "DELETE" });
+        if (res.ok) setWatchlistId(null);
+      } else {
+        const res = await fetch("/api/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker }),
+        });
+        if (res.ok) {
+          const item = await res.json();
+          setWatchlistId(item.id);
+        }
+      }
+    } catch (err) {
+      console.error("[StockDetailModal] watchlist", err);
+    } finally {
+      setIsTogglingWatchlist(false);
+    }
+  }
+
   const changeUp = (data?.quote?.change ?? 0) >= 0;
   const currentReport = data?.statements[reportIndex];
   const lineItems = currentReport?.report[statementKey] ?? [];
@@ -198,9 +233,22 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
               {data?.profile?.name && <div className="text-muted" style={{ fontSize: 12 }}>{data.profile.name}</div>}
             </div>
           </div>
-          <button onClick={onClose} className="btn btn-icon" aria-label="Cerrar">
-            <X size={18} />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <button
+              onClick={handleToggleWatchlist}
+              className="btn btn-icon"
+              aria-label={watchlistId ? "Quitar de watchlist" : "Agregar a watchlist"}
+              title={watchlistId ? "Quitar de watchlist" : "Agregar a watchlist"}
+              disabled={isTogglingWatchlist}
+            >
+              {isTogglingWatchlist
+                ? <Loader2 size={18} className="animate-spin" />
+                : <Star size={18} color="var(--color-accent)" fill={watchlistId ? "var(--color-accent)" : "none"} />}
+            </button>
+            <button onClick={onClose} className="btn btn-icon" aria-label="Cerrar">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {isLoading && (
@@ -323,6 +371,8 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
                     </div>
                   </div>
                 )}
+
+                <PriceAlertsPanel kind="stock" ticker={ticker} />
               </div>
             )}
 

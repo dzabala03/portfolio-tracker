@@ -13,8 +13,10 @@ import { BrokerFundingForm } from "@/components/modules/BrokerFundingForm";
 import { DepositsTable } from "@/components/modules/DepositsTable";
 import { PesosCOP } from "@/components/modules/PesosCOP";
 import { PesosCOPChart } from "@/components/modules/PesosCOPChart";
+import { DepositsAnalytics } from "@/components/modules/DepositsAnalytics";
 import { SearchBar } from "@/components/modules/SearchBar";
 import { StockDetailModal } from "@/components/modules/StockDetailModal";
+import { WatchlistView } from "@/components/modules/WatchlistView";
 import { PerformanceChart } from "@/components/modules/PerformanceChart";
 import { BestWorstAsset } from "@/components/modules/BestWorstAsset";
 import { MarketIndices } from "@/components/modules/MarketIndices";
@@ -24,7 +26,7 @@ import { clsx } from "clsx";
 import "./dashboard.css";
 
 type Modal = "transaction" | "csv" | "fondeo" | null;
-type View = "portafolio" | "pesos-cop";
+type View = "portafolio" | "pesos-cop" | "watchlist";
 
 interface PortfolioData {
   holdings: Holding[];
@@ -310,7 +312,9 @@ export default function DashboardPage() {
           Pesos COP
         </a>
         <a href="#" onClick={(e) => e.preventDefault()}>Transacciones</a>
-        <a href="#" onClick={(e) => e.preventDefault()}>Watchlist</a>
+        <a href="#" aria-current={view === "watchlist" ? "page" : undefined} onClick={(e) => { e.preventDefault(); setView("watchlist"); }}>
+          Watchlist
+        </a>
         <SearchBar onSelect={setSearchTicker} />
         <span className="status-pill">
           <span className={clsx("status-dot", !marketOpen && "closed")}></span>
@@ -570,6 +574,8 @@ export default function DashboardPage() {
 
           <PesosCOPChart />
 
+          <DepositsAnalytics fundings={fundings} />
+
           <div className="layout txn-wrap">
             <div className="row-hd">
               <h3 style={{ margin: 0 }}>Historial de depósitos</h3>
@@ -594,6 +600,9 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      {/* ─── Watchlist ──────────────────────────────────────── */}
+      {view === "watchlist" && <WatchlistView onSelectTicker={setSearchTicker} />}
 
       {/* ─── Modales ────────────────────────────────────────── */}
       {modal && (
