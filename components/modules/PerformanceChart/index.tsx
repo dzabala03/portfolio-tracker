@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea, ReferenceDot,
 } from "recharts";
 import { formatCurrency } from "@/lib/finance/calculations";
 import { clsx } from "clsx";
@@ -220,16 +220,53 @@ export function PerformanceChart() {
     [data]
   );
 
+  // En modo "% de rendimiento" el cálculo se hace sobre la curva TWR
+  // (encadenada), no sobre el valor en dólares: el valor crudo incluye
+  // depósitos/retiros entre las dos fechas, así que restar valores en $
+  // ahí daría un % sin sentido (ej. un depósito grande entre las dos
+  // fechas infla el cambio aunque el rendimiento real haya sido plano
+  // o negativo). En modo "valor" sí tiene sentido el cambio en dólares,
+  // porque ahí se está mostrando el valor de la cuenta, no un retorno.
   const selection = useMemo(() => {
     if (!selStart || !selEnd || !data) return null;
     const [d1, d2] = [selStart, selEnd].sort();
+
+    if (effectiveMode === "pct") {
+      const p1 = data.twrCurve.find((p) => p.date === d1);
+      const p2 = data.twrCurve.find((p) => p.date === d2);
+      if (!p1 || !p2) return null;
+      const growth1 = 1 + p1.pct / 100;
+      const growth2 = 1 + p2.pct / 100;
+      if (growth1 === 0) return null;
+      const changePct = (growth2 / growth1 - 1) * 100;
+      return { start: d1, end: d2, changePct, changeValue: null as number | null };
+    }
+
     const startPoint = data.series.find((p) => p.date === d1);
     const endPoint = data.series.find((p) => p.date === d2);
     if (!startPoint || !endPoint || startPoint.value === 0) return null;
     const changeValue = endPoint.value - startPoint.value;
     const changePct = (changeValue / startPoint.value) * 100;
-    return { start: d1, end: d2, changeValue, changePct };
-  }, [selStart, selEnd, data]);
+    return { start: d1, end: d2, changePct, changeValue };
+  }, [selStart, selEnd, data, effectiveMode]);
+
+  // Día de mejor y peor desempeño dentro de la curva que se está
+  // mostrando ahora mismo — se recalcula solo con el rango/modo activos.
+  const bestWorstDay = useMemo(() => {
+    if (!data) return null;
+    const source = effectiveMode === "valor"
+      ? data.series.map((p) => ({ date: p.date, v: p.value }))
+      : data.twrCurve.map((p) => ({ date: p.date, v: p.pct }));
+    if (source.length === 0) return null;
+    let best = source[0];
+    let worst = source[0];
+    for (const p of source) {
+      if (p.v > best.v) best = p;
+      if (p.v < worst.v) worst = p;
+    }
+    if (best.date === worst.date) return null;
+    return { best, worst };
+  }, [data, effectiveMode]);
 
   return (
     <div className="chart-wrap">
@@ -296,7 +333,8 @@ export function PerformanceChart() {
               <>
                 <span className="text-muted">{formatChartDate(selection.start)} → {formatChartDate(selection.end)}:</span>
                 <span style={{ fontWeight: 600, color: selection.changePct >= 0 ? COLOR_GAIN : COLOR_LOSS }}>
-                  {selection.changePct >= 0 ? "+" : ""}{selection.changePct.toFixed(2)}% ({selection.changeValue >= 0 ? "+" : ""}{formatCurrency(selection.changeValue)})
+                  {selection.changePct >= 0 ? "+" : ""}{selection.changePct.toFixed(2)}%
+                  {selection.changeValue !== null && ` (${selection.changeValue >= 0 ? "+" : ""}${formatCurrency(selection.changeValue)})`}
                 </span>
                 <button type="button" className="btn btn-icon btn-icon-sm" onClick={clearSelection} aria-label="Quitar selección">
                   <X size={12} />
@@ -311,7 +349,7 @@ export function PerformanceChart() {
 
           {effectiveMode === "valor" ? (
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={data.series} margin={{ top: 8, right: 4, bottom: 0, left: 4 }} onClick={handleChartClick}>
+              <AreaChart data={data.series} margin={{ top: 24, right: 4, bottom: 16, left: 4 }} onClick={handleChartClick}>
                 <defs>
                   <linearGradient id="perfFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={COLOR_ACCENT_100} stopOpacity={1} />
@@ -329,11 +367,19 @@ export function PerformanceChart() {
                   <ReferenceArea x1={selection.start} x2={selection.end} fill={COLOR_ACCENT} fillOpacity={0.12} stroke={COLOR_ACCENT} strokeOpacity={0.3} />
                 )}
                 <Area type="monotone" dataKey="value" stroke="#0088b0" strokeWidth={2} fill="url(#perfFill)" />
+                {bestWorstDay && (
+                  <>
+                    <ReferenceDot x={bestWorstDay.best.date} y={bestWorstDay.best.v} r={5} fill={COLOR_GAIN} stroke="#fff" strokeWidth={2}
+                      label={{ value: "★ Mejor día", position: "top", fill: COLOR_GAIN, fontSize: 11, fontWeight: 600 }} />
+                    <ReferenceDot x={bestWorstDay.worst.date} y={bestWorstDay.worst.v} r={5} fill={COLOR_LOSS} stroke="#fff" strokeWidth={2}
+                      label={{ value: "▽ Peor día", position: "bottom", fill: COLOR_LOSS, fontSize: 11, fontWeight: 600 }} />
+                  </>
+                )}
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={mergedPct} margin={{ top: 8, right: 4, bottom: 0, left: 4 }} onClick={handleChartClick}>
+              <LineChart data={mergedPct} margin={{ top: 24, right: 4, bottom: 16, left: 4 }} onClick={handleChartClick}>
                 <defs>
                   <linearGradient id="portfolioStroke" x1="0" y1="0" x2="1" y2="0">
                     {portfolioGradientStops.map((s, i) => (
@@ -368,6 +414,14 @@ export function PerformanceChart() {
                     strokeDasharray={BENCHMARK_STYLE[key].dash} dot={false} connectNulls
                   />
                 ))}
+                {bestWorstDay && (
+                  <>
+                    <ReferenceDot x={bestWorstDay.best.date} y={bestWorstDay.best.v} r={5} fill={COLOR_GAIN} stroke="#fff" strokeWidth={2}
+                      label={{ value: "★ Mejor día", position: "top", fill: COLOR_GAIN, fontSize: 11, fontWeight: 600 }} />
+                    <ReferenceDot x={bestWorstDay.worst.date} y={bestWorstDay.worst.v} r={5} fill={COLOR_LOSS} stroke="#fff" strokeWidth={2}
+                      label={{ value: "▽ Peor día", position: "bottom", fill: COLOR_LOSS, fontSize: 11, fontWeight: 600 }} />
+                  </>
+                )}
               </LineChart>
             </ResponsiveContainer>
           )}

@@ -410,8 +410,8 @@ export default function DashboardPage() {
           {/* ─── Evolución del valor ──────────────────────── */}
           <PerformanceChart />
 
-          {/* ─── Distribución + Mejor/Peor activo ──────────── */}
-          <div className="grid-split">
+          {/* ─── Distribución + Mejor/Peor activo + Desglose ─── */}
+          <div className="grid-triple">
             <div>
               <div className="row-hd">
                 <h3 style={{ margin: 0 }}>Distribución</h3>
@@ -451,8 +451,12 @@ export default function DashboardPage() {
               <div className="quick-stats" style={{ marginTop: 0 }}>
                 <BestWorstAsset />
               </div>
+            </div>
 
-              <div className="kicker" style={{ marginTop: "var(--space-4)" }}>Desglose del rendimiento</div>
+            <div>
+              <div className="row-hd">
+                <h3 style={{ margin: 0 }}>Desglose del rendimiento</h3>
+              </div>
               <ReturnBreakdown summary={data.summary} />
             </div>
           </div>
