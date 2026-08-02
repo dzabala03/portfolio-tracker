@@ -19,6 +19,7 @@ import { StockDetailModal } from "@/components/modules/StockDetailModal";
 import { WatchlistView } from "@/components/modules/WatchlistView";
 import { PerformanceChart } from "@/components/modules/PerformanceChart";
 import { BestWorstAsset } from "@/components/modules/BestWorstAsset";
+import { ReturnBreakdown } from "@/components/modules/ReturnBreakdown";
 import { MarketIndices } from "@/components/modules/MarketIndices";
 import { buildSectorAllocation, formatCurrency, formatShares, formatPercent } from "@/lib/finance/calculations";
 import { RefreshCw, Upload, PlusCircle, Landmark, X, Loader2, Trash2, LogOut } from "lucide-react";
@@ -450,6 +451,9 @@ export default function DashboardPage() {
               <div className="quick-stats" style={{ marginTop: 0 }}>
                 <BestWorstAsset />
               </div>
+
+              <div className="kicker" style={{ marginTop: "var(--space-4)" }}>Desglose del rendimiento</div>
+              <ReturnBreakdown summary={data.summary} />
             </div>
           </div>
 
