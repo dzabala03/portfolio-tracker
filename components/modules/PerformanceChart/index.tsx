@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea,
 } from "recharts";
 import { formatCurrency } from "@/lib/finance/calculations";
 import { clsx } from "clsx";
+import { X } from "lucide-react";
 
 // Deben mantenerse en sync con los tokens de app/globals.css —
 // los atributos SVG de recharts no resuelven var(--color-*).
+const COLOR_ACCENT = "#0088b0";
 const COLOR_ACCENT_100 = "#e9f8ff";
 const COLOR_GAIN = "#1a7a3c";
 const COLOR_LOSS = "#b3261e";
@@ -128,6 +130,28 @@ export function PerformanceChart() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Selección de rango por click: primer click marca el inicio, segundo
+  // click marca el fin (en cualquier orden) — un tercer click empieza
+  // una selección nueva desde cero.
+  const [selStart, setSelStart] = useState<string | null>(null);
+  const [selEnd, setSelEnd] = useState<string | null>(null);
+
+  function handleChartClick(e: any) {
+    const label = e?.activeLabel;
+    if (!label) return;
+    if (!selStart || selEnd) {
+      setSelStart(label);
+      setSelEnd(null);
+    } else {
+      setSelEnd(label);
+    }
+  }
+
+  function clearSelection() {
+    setSelStart(null);
+    setSelEnd(null);
+  }
+
   const load = useCallback(async (r: Range, benchmarks: Set<BenchmarkKey>) => {
     setIsLoading(true);
     setError(null);
@@ -149,6 +173,10 @@ export function PerformanceChart() {
   useEffect(() => {
     load(range, selectedBenchmarks);
   }, [range, selectedBenchmarks, load]);
+
+  useEffect(() => {
+    clearSelection();
+  }, [range]);
 
   function toggleBenchmark(key: BenchmarkKey) {
     setSelectedBenchmarks((prev) => {
@@ -191,6 +219,17 @@ export function PerformanceChart() {
     () => buildSignGradientStops((data?.twrCurve ?? []).map((p) => p.pct)),
     [data]
   );
+
+  const selection = useMemo(() => {
+    if (!selStart || !selEnd || !data) return null;
+    const [d1, d2] = [selStart, selEnd].sort();
+    const startPoint = data.series.find((p) => p.date === d1);
+    const endPoint = data.series.find((p) => p.date === d2);
+    if (!startPoint || !endPoint || startPoint.value === 0) return null;
+    const changeValue = endPoint.value - startPoint.value;
+    const changePct = (changeValue / startPoint.value) * 100;
+    return { start: d1, end: d2, changeValue, changePct };
+  }, [selStart, selEnd, data]);
 
   return (
     <div className="chart-wrap">
@@ -252,9 +291,27 @@ export function PerformanceChart() {
 
       {!isLoading && !error && hasSeries && data && (
         <>
+          <div className="chart-selection-note" style={{ fontSize: 12, marginBottom: 6, minHeight: 18, display: "flex", alignItems: "center", gap: 8 }}>
+            {selection ? (
+              <>
+                <span className="text-muted">{formatChartDate(selection.start)} → {formatChartDate(selection.end)}:</span>
+                <span style={{ fontWeight: 600, color: selection.changePct >= 0 ? COLOR_GAIN : COLOR_LOSS }}>
+                  {selection.changePct >= 0 ? "+" : ""}{selection.changePct.toFixed(2)}% ({selection.changeValue >= 0 ? "+" : ""}{formatCurrency(selection.changeValue)})
+                </span>
+                <button type="button" className="btn btn-icon btn-icon-sm" onClick={clearSelection} aria-label="Quitar selección">
+                  <X size={12} />
+                </button>
+              </>
+            ) : selStart ? (
+              <span className="text-muted">Haz click en otro día del gráfico para ver el rendimiento entre ambas fechas.</span>
+            ) : (
+              <span className="text-muted">Haz click en dos días del gráfico para ver el rendimiento entre ellos.</span>
+            )}
+          </div>
+
           {effectiveMode === "valor" ? (
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={data.series} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
+              <AreaChart data={data.series} margin={{ top: 8, right: 4, bottom: 0, left: 4 }} onClick={handleChartClick}>
                 <defs>
                   <linearGradient id="perfFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={COLOR_ACCENT_100} stopOpacity={1} />
@@ -268,12 +325,15 @@ export function PerformanceChart() {
                 />
                 <YAxis hide domain={["auto", "auto"]} />
                 <Tooltip content={<ValueTooltip />} />
+                {selection && (
+                  <ReferenceArea x1={selection.start} x2={selection.end} fill={COLOR_ACCENT} fillOpacity={0.12} stroke={COLOR_ACCENT} strokeOpacity={0.3} />
+                )}
                 <Area type="monotone" dataKey="value" stroke="#0088b0" strokeWidth={2} fill="url(#perfFill)" />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={mergedPct} margin={{ top: 8, right: 4, bottom: 0, left: 4 }}>
+              <LineChart data={mergedPct} margin={{ top: 8, right: 4, bottom: 0, left: 4 }} onClick={handleChartClick}>
                 <defs>
                   <linearGradient id="portfolioStroke" x1="0" y1="0" x2="1" y2="0">
                     {portfolioGradientStops.map((s, i) => (
@@ -292,6 +352,9 @@ export function PerformanceChart() {
                 />
                 <Tooltip content={<PctTooltip />} />
                 {selectedBenchmarks.size > 0 && <Legend wrapperStyle={{ fontSize: 12 }} />}
+                {selection && (
+                  <ReferenceArea x1={selection.start} x2={selection.end} fill={COLOR_ACCENT} fillOpacity={0.12} stroke={COLOR_ACCENT} strokeOpacity={0.3} />
+                )}
                 <Line
                   type="monotone" dataKey="portfolio" name="Mi portafolio"
                   stroke="url(#portfolioStroke)" strokeWidth={2} dot={false} connectNulls
