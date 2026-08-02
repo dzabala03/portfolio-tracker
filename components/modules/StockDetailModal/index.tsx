@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { X, Loader2, ExternalLink, AlertCircle, Star } from "lucide-react";
 import { clsx } from "clsx";
@@ -216,6 +216,13 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
   }
 
   const changeUp = (data?.quote?.change ?? 0) >= 0;
+  const rangeChangePct = useMemo(() => {
+    if (chartData.length < 2) return null;
+    const first = chartData[0].close;
+    const last = chartData[chartData.length - 1].close;
+    if (!first) return null;
+    return ((last - first) / first) * 100;
+  }, [chartData]);
   const currentReport = data?.statements[reportIndex];
   const lineItems = currentReport?.report[statementKey] ?? [];
 
@@ -289,13 +296,20 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
                 )}
 
                 <div>
-                  <div className="seg" role="group" aria-label="Rango de tiempo" style={{ marginBottom: "var(--space-2)" }}>
-                    {RANGES.map((r) => (
-                      <label key={r} className="seg-opt">
-                        <input type="radio" name="stock-chart-range" checked={range === r} onChange={() => setRange(r)} />
-                        <span>{r}</span>
-                      </label>
-                    ))}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
+                    <div className="seg" role="group" aria-label="Rango de tiempo">
+                      {RANGES.map((r) => (
+                        <label key={r} className="seg-opt">
+                          <input type="radio" name="stock-chart-range" checked={range === r} onChange={() => setRange(r)} />
+                          <span>{r}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {!isChartLoading && rangeChangePct !== null && (
+                      <span className={clsx("delta", rangeChangePct >= 0 ? "up" : "down")} style={{ fontWeight: 600 }}>
+                        {rangeChangePct >= 0 ? "+" : ""}{rangeChangePct.toFixed(2)}% en {range}
+                      </span>
+                    )}
                   </div>
 
                   {isChartLoading ? (
