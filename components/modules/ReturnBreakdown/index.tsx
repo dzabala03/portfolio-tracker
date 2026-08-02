@@ -25,18 +25,18 @@ export function ReturnBreakdown({ summary }: Props) {
   ];
 
   return (
-    <div className="quick-stats">
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--space-3)" }}>
       {rows.map((r) => (
-        <div className="qs-row" key={r.label}>
-          <span>{r.label}</span>
-          <span className={clsx("num", r.value >= 0 ? "gain" : "loss")}>
+        <div className="card elev-sm" key={r.label}>
+          <span className="card-kicker">{r.label}</span>
+          <span className={clsx("num", r.value >= 0 ? "gain" : "loss")} style={{ fontSize: 18, fontWeight: 600 }}>
             {r.value >= 0 ? "+" : ""}{formatCurrency(r.value)}
           </span>
         </div>
       ))}
-      <div className="qs-row" style={{ fontWeight: 600 }}>
-        <span>Rendimiento total</span>
-        <span className={clsx("num", summary.totalReturn >= 0 ? "gain" : "loss")}>
+      <div className="card elev-sm" style={{ background: "var(--color-accent-100)" }}>
+        <span className="card-kicker">Rendimiento total</span>
+        <span className={clsx("num", summary.totalReturn >= 0 ? "gain" : "loss")} style={{ fontSize: 18, fontWeight: 700 }}>
           {summary.totalReturn >= 0 ? "+" : ""}{formatCurrency(summary.totalReturn)}
         </span>
       </div>
