@@ -49,6 +49,7 @@ header.nav { padding-left: var(--space-8); padding-right: var(--space-8); paddin
 .grid-main { display: grid; grid-template-columns: 2.1fr 1fr; gap: var(--space-8); padding: 0 var(--space-8) var(--space-8); max-width: 1360px; margin: 0 auto; }
 .grid-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-8); padding: 0 var(--space-8) var(--space-8); max-width: 1360px; margin: 0 auto; }
 @media (max-width: 900px) { .grid-split { grid-template-columns: 1fr; } }
+.grid-split > div { background: var(--color-surface); border-radius: var(--radius-md); padding: var(--space-5); }
 
 .alloc-row { display: flex; align-items: center; gap: var(--space-3); padding: 11px 0; }
 .alloc-name { flex: 1; font-size: 13px; }
