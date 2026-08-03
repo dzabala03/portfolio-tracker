@@ -32,7 +32,7 @@ interface Props {
 }
 
 type SortKey =
-  | "ticker" | "shares" | "avgCost" | "currentPrice" | "dailyChangePct"
+  | "ticker" | "shares" | "avgCost" | "currentPrice" | "dailyChange"
   | "postMarketChangePct" | "postMarketChangeValue"
   | "currentValue" | "weight" | "unrealizedPnL" | "totalPnL";
 type SortDir = "asc" | "desc";
@@ -113,7 +113,7 @@ export function HoldingsTable({ rows, isLoading, onSelectTicker }: Props) {
         render: (row) => (row.currentPrice !== null ? formatCurrency(row.currentPrice) : "—"),
       },
       {
-        key: "dailyChangePct", label: "Hoy", align: "right",
+        key: "dailyChange", label: "Hoy", align: "right",
         render: (row) => (
           <span className={clsx(row.dailyChange !== null && (row.dailyChange >= 0 ? "gain" : "loss"))}>
             {row.dailyChange !== null ? (

@@ -39,9 +39,11 @@ Edita `.env.local` con tus valores:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SECRET_KEY=sb_secret_...
 FINNHUB_API_KEY=tu_clave_finnhub
+RESEND_API_KEY=tu_clave_resend
+CRON_SECRET=un_valor_secreto_aleatorio
 ```
 
 ### 5. Correr en desarrollo
