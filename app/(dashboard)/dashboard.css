@@ -68,6 +68,18 @@ header.nav { padding-left: var(--space-8); padding-right: var(--space-8); paddin
 .qs-row { display: flex; justify-content: space-between; padding: 9px 0; font-size: 13px; }
 .qs-row span:last-child { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 
+/* — tarjeta del gráfico de depósitos: mismo grid-split pero con
+   borde sutil + degradado propio para diferenciarla de una caja plana — */
+.grid-split > .deposits-chart-card {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--color-accent-100) 55%, var(--color-surface)) 0%, var(--color-surface) 55%);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-divider));
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease;
+}
+.grid-split > .deposits-chart-card:hover { box-shadow: var(--shadow-md); }
+.deposits-chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4); flex-wrap: wrap; }
+.seg-sm .seg-opt { padding: 4px 9px; font-size: 11px; }
+
 table.holdings td:first-child, table.holdings th:first-child { padding-left: 0; }
 table.holdings td:last-child, table.holdings th:last-child { padding-right: 0; }
 .tkr-name { font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-family: var(--font-body); }
