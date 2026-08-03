@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea, ReferenceDot, CartesianGrid,
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea, ReferenceDot, ReferenceLine, CartesianGrid,
 } from "recharts";
 import { formatCurrency } from "@/lib/finance/calculations";
 import { clsx } from "clsx";
@@ -78,13 +78,16 @@ function PctTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="perf-tooltip">
-      <div>{formatChartDate(label)}</div>
+      <div className="text-muted" style={{ fontSize: 11, marginBottom: 3 }}>{formatChartDate(label)}</div>
       {payload.map((p: any) => {
         if (p.value === undefined || p.value === null) return null;
         const color = p.dataKey === "portfolio" ? (p.value >= 0 ? COLOR_GAIN : COLOR_LOSS) : p.stroke;
         return (
-          <div key={p.dataKey} style={{ color, fontWeight: 600 }}>
-            {p.name}: {p.value >= 0 ? "+" : ""}{p.value.toFixed(2)}%
+          <div key={p.dataKey} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+            <span style={{ color, fontWeight: 700, fontSize: p.dataKey === "portfolio" ? 14 : 12 }}>
+              {p.name}: {p.value >= 0 ? "+" : ""}{p.value.toFixed(2)}%
+            </span>
           </div>
         );
       })}
@@ -402,7 +405,11 @@ export function PerformanceChart() {
                       <stop key={i} offset={s.offset} stopColor={s.color} />
                     ))}
                   </linearGradient>
+                  <filter id="pctLineGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="2.5" floodColor={COLOR_ACCENT} floodOpacity="0.3" />
+                  </filter>
                 </defs>
+                <CartesianGrid vertical={false} stroke={COLOR_DIVIDER} strokeDasharray="3 4" opacity={0.6} />
                 <XAxis
                   dataKey="date" tickFormatter={formatChartDate}
                   tick={{ fontSize: 11, fill: "#8a8685" }} axisLine={{ stroke: COLOR_DIVIDER }}
@@ -412,15 +419,19 @@ export function PerformanceChart() {
                   tickFormatter={(v: number) => `${v.toFixed(0)}%`}
                   tick={{ fontSize: 11, fill: "#8a8685" }} axisLine={false} tickLine={false} width={44}
                 />
-                <Tooltip content={<PctTooltip />} />
+                <Tooltip content={<PctTooltip />} cursor={{ stroke: COLOR_ACCENT, strokeWidth: 1, strokeDasharray: "3 3" }} />
                 {selectedBenchmarks.size > 0 && <Legend wrapperStyle={{ fontSize: 12 }} />}
+                <ReferenceLine y={0} stroke={COLOR_DIVIDER} strokeWidth={1} />
                 {selection && (
                   <ReferenceArea x1={selection.start} x2={selection.end} fill={COLOR_ACCENT} fillOpacity={0.12} stroke={COLOR_ACCENT} strokeOpacity={0.3} />
                 )}
                 <Line
                   type="monotone" dataKey="portfolio" name="Mi portafolio"
-                  stroke="url(#portfolioStroke)" strokeWidth={2} dot={false} connectNulls
+                  stroke="url(#portfolioStroke)" strokeWidth={2.5} dot={false} connectNulls
+                  filter="url(#pctLineGlow)"
+                  activeDot={{ r: 5, fill: COLOR_ACCENT, stroke: "#fff", strokeWidth: 2 }}
                   legendType={selectedBenchmarks.size > 0 ? "line" : "none"}
+                  isAnimationActive animationDuration={500}
                 />
                 {Array.from(selectedBenchmarks).map((key) => (
                   <Line
@@ -432,8 +443,10 @@ export function PerformanceChart() {
                 ))}
                 {bestWorstDay && (
                   <>
+                    <ReferenceDot x={bestWorstDay.best.date} y={bestWorstDay.best.v} r={9} fill={COLOR_GAIN} fillOpacity={0.15} stroke="none" />
                     <ReferenceDot x={bestWorstDay.best.date} y={bestWorstDay.best.v} r={5} fill={COLOR_GAIN} stroke="#fff" strokeWidth={2}
                       label={{ value: "★ Mejor día", position: "top", fill: COLOR_GAIN, fontSize: 11, fontWeight: 600 }} />
+                    <ReferenceDot x={bestWorstDay.worst.date} y={bestWorstDay.worst.v} r={9} fill={COLOR_LOSS} fillOpacity={0.15} stroke="none" />
                     <ReferenceDot x={bestWorstDay.worst.date} y={bestWorstDay.worst.v} r={5} fill={COLOR_LOSS} stroke="#fff" strokeWidth={2}
                       label={{ value: "▽ Peor día", position: "bottom", fill: COLOR_LOSS, fontSize: 11, fontWeight: 600 }} />
                   </>
