@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea, ReferenceDot,
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, ReferenceArea, ReferenceDot, CartesianGrid,
 } from "recharts";
 import { formatCurrency } from "@/lib/finance/calculations";
 import { clsx } from "clsx";
@@ -12,6 +12,7 @@ import { X } from "lucide-react";
 // los atributos SVG de recharts no resuelven var(--color-*).
 const COLOR_ACCENT = "#0088b0";
 const COLOR_ACCENT_100 = "#e9f8ff";
+const COLOR_ACCENT_500 = "#38a6cf";
 const COLOR_GAIN = "#1a7a3c";
 const COLOR_LOSS = "#b3261e";
 const COLOR_DIVIDER = "#e3e1e0";
@@ -64,8 +65,11 @@ function ValueTooltip({ active, payload }: any) {
   const point = payload[0].payload as { date: string; value: number };
   return (
     <div className="perf-tooltip">
-      <div>{formatChartDate(point.date)}</div>
-      <div style={{ fontWeight: 600 }}>{formatCurrency(point.value)}</div>
+      <div className="text-muted" style={{ fontSize: 11 }}>{formatChartDate(point.date)}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLOR_ACCENT, flexShrink: 0 }} />
+        <span style={{ fontWeight: 700, fontSize: 14 }}>{formatCurrency(point.value)}</span>
+      </div>
     </div>
   );
 }
@@ -352,25 +356,37 @@ export function PerformanceChart() {
               <AreaChart data={data.series} margin={{ top: 24, right: 4, bottom: 16, left: 4 }} onClick={handleChartClick}>
                 <defs>
                   <linearGradient id="perfFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={COLOR_ACCENT_100} stopOpacity={1} />
-                    <stop offset="100%" stopColor={COLOR_ACCENT_100} stopOpacity={0.1} />
+                    <stop offset="0%" stopColor={COLOR_ACCENT_500} stopOpacity={0.45} />
+                    <stop offset="55%" stopColor={COLOR_ACCENT_100} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={COLOR_ACCENT_100} stopOpacity={0.02} />
                   </linearGradient>
+                  <filter id="perfLineGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="2.5" floodColor={COLOR_ACCENT} floodOpacity="0.35" />
+                  </filter>
                 </defs>
+                <CartesianGrid vertical={false} stroke={COLOR_DIVIDER} strokeDasharray="3 4" opacity={0.6} />
                 <XAxis
                   dataKey="date" tickFormatter={formatChartDate}
                   tick={{ fontSize: 11, fill: "#8a8685" }} axisLine={{ stroke: COLOR_DIVIDER }}
                   tickLine={false} minTickGap={40}
                 />
                 <YAxis hide domain={["auto", "auto"]} />
-                <Tooltip content={<ValueTooltip />} />
+                <Tooltip content={<ValueTooltip />} cursor={{ stroke: COLOR_ACCENT, strokeWidth: 1, strokeDasharray: "3 3" }} />
                 {selection && (
                   <ReferenceArea x1={selection.start} x2={selection.end} fill={COLOR_ACCENT} fillOpacity={0.12} stroke={COLOR_ACCENT} strokeOpacity={0.3} />
                 )}
-                <Area type="monotone" dataKey="value" stroke="#0088b0" strokeWidth={2} fill="url(#perfFill)" />
+                <Area
+                  type="monotone" dataKey="value" stroke={COLOR_ACCENT} strokeWidth={2.5} fill="url(#perfFill)"
+                  filter="url(#perfLineGlow)"
+                  activeDot={{ r: 5, fill: COLOR_ACCENT, stroke: "#fff", strokeWidth: 2 }}
+                  isAnimationActive animationDuration={500}
+                />
                 {bestWorstDay && (
                   <>
+                    <ReferenceDot x={bestWorstDay.best.date} y={bestWorstDay.best.v} r={9} fill={COLOR_GAIN} fillOpacity={0.15} stroke="none" />
                     <ReferenceDot x={bestWorstDay.best.date} y={bestWorstDay.best.v} r={5} fill={COLOR_GAIN} stroke="#fff" strokeWidth={2}
                       label={{ value: "★ Mejor día", position: "top", fill: COLOR_GAIN, fontSize: 11, fontWeight: 600 }} />
+                    <ReferenceDot x={bestWorstDay.worst.date} y={bestWorstDay.worst.v} r={9} fill={COLOR_LOSS} fillOpacity={0.15} stroke="none" />
                     <ReferenceDot x={bestWorstDay.worst.date} y={bestWorstDay.worst.v} r={5} fill={COLOR_LOSS} stroke="#fff" strokeWidth={2}
                       label={{ value: "▽ Peor día", position: "bottom", fill: COLOR_LOSS, fontSize: 11, fontWeight: 600 }} />
                   </>
@@ -427,7 +443,7 @@ export function PerformanceChart() {
           )}
 
           <div className="perf-stats">
-            <div>
+            <div className={clsx("perf-stat-card", data.twr >= 0 ? "is-gain" : "is-loss")}>
               <div className="perf-stat-label">TWR — Time-Weighted Return</div>
               <div className="perf-stat-value" style={{ color: data.twr >= 0 ? COLOR_GAIN : COLOR_LOSS }}>
                 {data.twr >= 0 ? "+" : ""}{data.twr.toFixed(2)}%
@@ -436,7 +452,7 @@ export function PerformanceChart() {
                 Rendimiento puro de tus inversiones — ignora cuándo depositaste. Responde: ¿qué tan buenas fueron mis decisiones?
               </div>
             </div>
-            <div>
+            <div className={clsx("perf-stat-card", data.mwr >= 0 ? "is-gain" : "is-loss")}>
               <div className="perf-stat-label">MWR — Money-Weighted Return</div>
               <div className="perf-stat-value" style={{ color: data.mwr >= 0 ? COLOR_GAIN : COLOR_LOSS }}>
                 {data.mwr >= 0 ? "+" : ""}{data.mwr.toFixed(2)}%
