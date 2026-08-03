@@ -40,6 +40,7 @@ interface FinancialReport {
 interface NewsItem { datetime: number; headline: string; summary: string; source: string; url: string; image: string }
 interface RecommendationTrend { period: string; strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }
 interface DailyClose { date: string; close: number }
+interface PostMarketQuote { regularClose: number; price: number; change: number; changePct: number; time: number }
 
 interface StockDetailData {
   ticker: string;
@@ -50,6 +51,7 @@ interface StockDetailData {
   news: NewsItem[];
   recommendations: RecommendationTrend[];
   peers: string[];
+  postMarket: PostMarketQuote | null;
 }
 
 interface Props {
@@ -82,6 +84,11 @@ function formatUSD(value: number): string {
 }
 function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
+}
+function formatPostMarketTime(unixSeconds: number): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hour: "numeric", minute: "2-digit", hour12: true,
+  }).format(new Date(unixSeconds * 1000)) + " ET";
 }
 
 interface MetricDef { key: string; label: string; format: "usd" | "ratio" | "percent" }
@@ -292,6 +299,16 @@ export function StockDetailModal({ ticker, onClose, onSelectTicker }: Props) {
                     <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
                       Apertura {formatUSD(data.quote.open)} · Máx {formatUSD(data.quote.high)} · Mín {formatUSD(data.quote.low)} · Cierre anterior {formatUSD(data.quote.prevClose)}
                     </div>
+                    {data.postMarket && (
+                      <div className="post-market-delta" style={{ marginTop: 6 }}>
+                        <span className="text-muted">Posmercado </span>
+                        <span style={{ fontWeight: 600 }}>{formatUSD(data.postMarket.price)}</span>
+                        <span className={clsx("delta", data.postMarket.change >= 0 ? "up" : "down")} style={{ marginLeft: 6 }}>
+                          {data.postMarket.change >= 0 ? "+" : ""}{formatUSD(data.postMarket.change)} ({data.postMarket.change >= 0 ? "+" : ""}{data.postMarket.changePct.toFixed(2)}%)
+                        </span>
+                        <span className="text-muted" style={{ marginLeft: 6 }}>· {formatPostMarketTime(data.postMarket.time)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 

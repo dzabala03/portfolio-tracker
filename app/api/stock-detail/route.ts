@@ -18,6 +18,7 @@ import {
   fetchRecommendationTrends,
   fetchPeers,
 } from "@/lib/finnhub/client";
+import { fetchPostMarketQuote, isPostMarketWindow } from "@/lib/yahoo/client";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Parámetro 'ticker' requerido" }, { status: 400 });
   }
 
-  const [quote, profile, financials, statements, news, recommendations, peers] =
+  // El post-market solo tiene sentido (y solo se pide) fuera de la
+  // sesión regular — igual que en /api/portfolio.
+  const [quote, profile, financials, statements, news, recommendations, peers, postMarket] =
     await Promise.all([
       safe(fetchQuote(ticker), null),
       safe(fetchFullCompanyProfile(ticker), null),
@@ -59,6 +62,7 @@ export async function GET(request: NextRequest) {
       safe(fetchCompanyNews(ticker, daysAgoISO(21), todayISO()), []),
       safe(fetchRecommendationTrends(ticker), []),
       safe(fetchPeers(ticker), []),
+      isPostMarketWindow() ? safe(fetchPostMarketQuote(ticker), null) : Promise.resolve(null),
     ]);
 
   if (!quote && !profile) {
@@ -74,5 +78,6 @@ export async function GET(request: NextRequest) {
     news,
     recommendations,
     peers,
+    postMarket,
   });
 }
