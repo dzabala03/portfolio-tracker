@@ -27,12 +27,13 @@ header.nav { padding-left: var(--space-8); padding-right: var(--space-8); paddin
 .gain { color: var(--color-gain); }
 .loss { color: var(--color-loss); }
 
-.chart-wrap { max-width: 1360px; margin: var(--space-4) auto var(--space-8); padding: var(--space-6) var(--space-8); }
-.chart-wrap {
+.chart-wrap { padding: var(--space-6) var(--space-8) var(--space-8); max-width: 1360px; margin: 0 auto; }
+.chart-card {
   background: linear-gradient(160deg, color-mix(in srgb, var(--color-accent-100) 45%, var(--color-surface)) 0%, var(--color-surface) 60%);
   border: 1px solid color-mix(in srgb, var(--color-accent) 16%, var(--color-divider));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
 }
 .chart-wrap .recharts-surface { cursor: pointer; }
 .chart-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--space-3); }

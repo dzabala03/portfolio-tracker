@@ -277,6 +277,7 @@ export function PerformanceChart() {
 
   return (
     <div className="chart-wrap">
+    <div className="chart-card">
       <div className="chart-head">
         <h3 style={{ margin: 0 }}>{effectiveMode === "valor" ? "Evolución del valor" : "Rendimiento (%)"}</h3>
         <div className="seg" role="group" aria-label="Rango de tiempo">
@@ -477,6 +478,7 @@ export function PerformanceChart() {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }
