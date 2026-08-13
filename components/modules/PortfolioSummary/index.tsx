@@ -42,7 +42,7 @@ export function PortfolioSummaryCards({ summary }: Props) {
       {/* Valor total del portafolio */}
       <div>
         <div className="kicker">Valor total del portafolio</div>
-        <div className="big-num">{formatCurrency(summary.totalValue)}</div>
+        <div className="big-num">{formatCurrency(summary.totalNetWorth)}</div>
         <div className={clsx("delta", dailyUp ? "up" : "down")}>
           <DeltaArrow up={dailyUp} />
           {dailyUp ? "+" : ""}

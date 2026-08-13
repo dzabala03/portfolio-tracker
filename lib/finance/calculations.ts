@@ -326,6 +326,7 @@ export function buildPortfolioSummary(
 
   return {
     totalValue,
+    totalNetWorth,
     totalInvested,
     totalUnrealizedPnL,
     totalUnrealizedPnLPct,

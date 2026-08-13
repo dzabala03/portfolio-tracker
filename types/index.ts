@@ -160,6 +160,7 @@ export interface CashFlowSummary {
 
 export interface PortfolioSummary {
   totalValue: number;
+  totalNetWorth: number;
   totalInvested: number;
   totalUnrealizedPnL: number;
   totalUnrealizedPnLPct: number;

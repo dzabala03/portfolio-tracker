@@ -20,7 +20,7 @@ function formatCOP(value: number): string {
 export function PesosCOP({ summary, trm, totalFeesCop, totalCopEnviado, isLoading }: Props) {
   const trmUp = (trm?.change ?? 0) >= 0;
 
-  const valorTotalCop = (summary?.totalValue ?? 0) * (trm?.value ?? 0);
+  const valorTotalCop = (summary?.totalNetWorth ?? 0) * (trm?.value ?? 0);
   const rendimientoPortafolioCop = (summary?.totalReturn ?? 0) * (trm?.value ?? 0);
   const rendimientoTotalCop = rendimientoPortafolioCop - totalFeesCop;
   const efectivoCop = (summary?.cashAvailable ?? 0) * (trm?.value ?? 0);
